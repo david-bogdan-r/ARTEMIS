@@ -1,48 +1,131 @@
-import os 
-import functools
-
+import os
 import pandas as pd
 import numpy  as np
 
+from copy   import deepcopy
+from string import ascii_letters, digits
 
-pd.set_option('mode.chained_assignment', None)
+
 pd.to_numeric.__defaults__ = 'ignore', None
 
+COORD = ['Cartn_x', 'Cartn_y', 'Cartn_z']
 
-class structure(pd.DataFrame):
-    counter = 0
+class Structure:
+    def __init__(self, name:'str', atom_site:'pd.DataFrame'):
+        self.name      = name
+        self.atom_site = atom_site
     
-    def __init__(self, *args, **kwargs) -> 'None':
-        structure.counter += 1
-        
-        if not 'name' in kwargs:
-            name = 'structure.{}'.format(structure.counter)
-        else:
-            name = kwargs['name']
-            del kwargs['name']
-        
-        if not 'fmt' in kwargs:
-            fmt = None
-        else:
-            fmt = kwargs['fmt']
-            del kwargs['fmt']
-        
-        super().__init__(*args, **kwargs)
-        
-        self.name = name
-        self.fmt  = fmt
-    
-    def __str__(self) -> 'str':
+    def __str__(self):
         return self.name
     
-    def __repr__(self) -> str:
-        return '<{} structure>'.format(self)
+    def __repr__(self):
+        return '<{} Structure>'.format(self)
     
-    def rename(self, name:'str') -> 'None':
-        self.name = name
+    def to_cif(self, path:'str'):
+        folder, file = os.path.split(path)
+        if folder:
+            os.makedirs(folder, exist_ok=True)
+        
+        with open(path, 'w') as file:
+            file.write('data_{}\n'.format(self))
+            file.write('# \nloop_\n')
+            file.write('\n'.join(self.atom_site.add_prefix('_atom_site.')) + '\n')
+            self.atom_site.to_string(file, header=False, index=False)
+            file.write('\n# \n')
     
-    def drop_altloc(self, keep:'str' = 'last'):
-        super().drop_duplicates(
+    
+    def to_pdb(self, path:'str'):
+        folder, file = os.path.split(path)
+        if folder:
+            os.makedirs(folder, exist_ok=True)
+        
+        atom_site = self.atom_site.copy()
+        atom_site.replace('.', '', inplace=True)
+        atom_site.replace('?', '', inplace=True)
+        
+        with open(path, 'w') as file:
+            chains = set(self.atom_site['auth_asym_id'].astype(str))
+            rename = {c: None for c in chains if len(c) > 1}
+            if rename:
+                names = (name for name in ascii_letters + digits)
+                for c in rename:
+                    name = next(names, None)
+                    while name in chains:
+                        name = next(names, None)
+                    if name:
+                        rename[c] = name
+                    else:
+                        raise ValueError('No free names for the chain')
+                    
+                    file.write(PDB_FORMAT['REMARK'].format(c, rename[c]))
+                atom_site = atom_site.replace({'auth_asym_id':rename})
+            
+            chain_delta = 0
+            model_delta = 0
+            
+            model = atom_site.iloc[0]['pdbx_PDB_model_num']
+            chain = atom_site.iloc[0]['auth_asym_id']
+            
+            file.write(PDB_FORMAT['MODEL'].format(model))
+            item_ = None
+            for item in atom_site.to_dict('index').values():
+                if item['pdbx_PDB_model_num'] != model:
+                    model = item['pdbx_PDB_model_num']
+                    file.write(PDB_FORMAT['ENDMDL'])
+                    file.write(PDB_FORMAT['MODEL'].format(model))
+                    model_delta += 1
+                elif item['auth_asym_id'] != chain:
+                    chain = item['auth_asym_id']
+                    item_['id'] += 1
+                    file.write(PDB_FORMAT['TER'].format(**item_))
+                    chain_delta += 1
+                
+                item['id'] = (item['id'] + chain_delta + model_delta) % 100_000
+                item_ = item
+                file.write(PDB_FORMAT['ATOM'].format(**item))
+    
+    def get_coord(self):
+        return self.atom_site[COORD].values
+    
+    def set_coord(self, mat:'np.ndarray'):
+        self.atom_site.loc[:, COORD] = mat
+    
+    coord = property(get_coord, set_coord)
+    
+    def copy(self):
+        return deepcopy(self)
+    
+    def __add__(self, val):
+        other = self.copy()
+        other.coord +=  val
+        return other
+    
+    def __sub__(self, val):
+        other = self.copy()
+        other.coord -=  val
+        return other
+    
+    def __mul__(self, val):
+        other = self.copy()
+        if hasattr(val, 'shape') and val.shape == (3, 3):
+            other.coord = np.dot(other.coord, val)
+        else:
+            other.coord *= val
+        return other
+    
+    @property
+    def dssr(self):
+        columns = [
+            'pdbx_PDB_model_num',
+            'auth_asym_id',
+            'auth_comp_id',
+            'auth_seq_id',
+            'pdbx_PDB_ins_code'
+        ]
+        return self.atom_site[columns].replace('?', '').values
+    
+    def drop_altloc(self, keep='last'):
+        self.atom_site.drop_duplicates(
             [
                 'pdbx_PDB_model_num', 
                 'auth_asym_id', 
@@ -55,446 +138,301 @@ class structure(pd.DataFrame):
             inplace=True
         )
     
+    def _read_res(self, res:'str'):
+        reads  = []
+        for subres in res.split():
+            read = {
+                '#': None,
+                '/': None,
+                ':': None
+            }
+            
+            ic = iter(subres)
+            c  = next(ic, None)
+            while c:
+                if c in read:
+                    read[c] = ''
+                    cc = next(ic, None)
+                    while cc and cc not in read:
+                        read[c] += cc
+                        cc = next(ic, None)
+                    else:
+                        c = cc
+                else:
+                    c = next(ic, None)
+            
+            if read['#']:
+                read['#'] = int(read['#'])
+            
+            if read['/'] == '':
+                read['/'] = None
+            
+            if read[':']:
+                part      = read[':'].split('_')
+                b, n1, n2 = None, None, None
+                
+                if len(part) == 1:
+                    b = part[0]
+                
+                elif len(part) == 2:
+                    if part[0]:
+                        b = part[0]
+                    
+                    if part[1].startswith('-'):
+                        n1 = '-'
+                        part[1] = part[1][1:]
+                    else:
+                        n1 = ''
+                    
+                    if not part[1].isdigit():
+                        for i, c in enumerate(part[1]):
+                            if c.isdigit():
+                                n1 += c
+                            else:
+                                break
+                        n1 = int(n1)
+                        b  = part[1][i:]
+                    else:
+                        n1 = int(n1 + part[1])
+                
+                elif len(part) == 3:
+                    b = part[0]
+                    n1 = int(part[1])
+                    n2 = int(part[2])
+                
+                read[':'] = {'b':b, 'n1':n1, 'n2':n2}
+            reads.append(read)
+        
+        return reads
     
-    def deprecate(func):
-        @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
-            other = func(self, *args, **kwargs)
-            other = structure(other)
-            other.name = self.name
-            other.fmt  = self.fmt
-            return other
-        return wrapper
+    def _res_mask(self, res:'str'):
+        reads = self._read_res(res)
+        if reads:
+            mask = np.array([False]*len(self.atom_site))
+            for read in reads:
+                m = np.array([True]*len(self.atom_site))
+                if read['#']:
+                    m &= (self.atom_site['pdbx_PDB_model_num']
+                          .eq(read['#']).values)
+                if read['/']:
+                    m &= (self.atom_site['auth_asym_id']
+                          .eq(read['/']).values)
+                if read[':']:
+                    if read[':']['b']:
+                        m &= (self.atom_site['auth_comp_id']
+                              .eq(read[':']['b']).values)
+                    if read[':']['n2']:
+                        m &= (self.atom_site['auth_seq_id']
+                              .between(read[':']['n1'], read[':']['n2']).values)
+                    else:
+                        m &= (self.atom_site['auth_seq_id']
+                              .eq(read[':']['n1']).values)
+                mask |= m
+        else:
+            mask = np.array([True]*len(self.atom_site))
+        
+        return mask
     
-    @deprecate
-    def apply(self, *args, **kwargs):
-        return super().apply(*args, **kwargs)
+    def get_substruct(self, res:'str', neg:'bool'=False):
+        mask = self._res_mask(res)
+        if neg:
+            mask ^= True
+        structure = Structure(self.name, self.atom_site[mask])
+        return structure
     
-    @deprecate
-    def fillna(self, *args, **kwargs):
-        return super().fillna(*args, **kwargs)
-    
-    @deprecate
-    def copy(self, *args, **kwargs):
-        return super().copy(*args, **kwargs)
-    
-    
-    @property
-    def coord(self):
-        return self[['Cartn_x', 'Cartn_y', 'Cartn_z']]
-    
-    @coord.setter
-    def coord(self, new_coord):
-        self[['Cartn_x', 'Cartn_y', 'Cartn_z']] = new_coord
-    
-    @property
-    def dssr_columns(self):
-        return [
+    def resgen(self, res:'str'='', neg:'bool'=False):
+        substruct = self.get_substruct(res, neg)
+        
+        columns = [
             'pdbx_PDB_model_num',
             'auth_asym_id',
             'auth_comp_id',
             'auth_seq_id',
-            'pdbx_PDB_ins_code',
+            'pdbx_PDB_ins_code'
         ]
+        
+        for dssr, atom_site in substruct.atom_site.groupby(columns, sort=False):
+            name = self.name + '_' + '.'.join(map(str, dssr)).replace('?', '')
+            res  = Structure(name, atom_site)
+            yield res
     
-    @property
-    def dssr(self):
-        return self[self.dssr_columns].replace('?', '')
+    def resapply(self, func):
+        results = []
+        for res in self.resgen(''):
+            results.append(func(res))
+        return results
+
+
+def resrepr(res:'Structure', rep:'dict'={}):
+    base = res.atom_site['auth_comp_id'].iloc[0]
+    if base not in rep:
+        return None
+    else:
+        atom_site:'pd.DataFrame' = res.atom_site.copy()
+        atom_site.set_index('auth_atom_id', inplace=True)
+        
+        mat = []
+        for atom in rep[base]:
+            try:
+                vec = atom_site.loc[atom.split(), COORD].values
+                mat.append(vec.mean(axis=0))
+            except:
+                return None
+        return np.array(mat)
+
+
+def join(*structure, name:'str'='join',):
+    atom_site = pd.concat([s.atom_site for s in structure])
+    structure = Structure(name, atom_site)
+    return structure
+
+
+def read_pdb(path:'str', name:'str'=''):
+    if not name:
+        name = os.path.basename(path).split(os.path.extsep)[0]
     
-    
-    def as_cif(self) -> 'structure':
-        if self.fmt == 'CIF':
-            return self.copy()
-        
-        tab = pd.DataFrame(self)
-        tab['pdbx_PDB_ins_code'].replace('', '?', inplace=True)
-        tab['pdbx_formal_charge'].replace('', '?', inplace=True)
-        tab['label_alt_id'].replace('', '.', inplace=True)
-        
-        tab['label_atom_id']   = tab['auth_atom_id']
-        tab['label_comp_id']   = tab['auth_comp_id']
-        tab['label_asym_id']   = tab['auth_asym_id']
-        tab['label_seq_id']    = tab['auth_seq_id']
-        
-        entity = tab['label_asym_id'].unique()
-        entity = dict(zip(entity, range(1, len(entity) + 1)))
-        tab['label_entity_id'] = tab['label_asym_id'].replace(entity)
-        
-        tab = tab[
-            [
-                'group_PDB',
-                'id',
-                'type_symbol',
-                'label_atom_id',
-                'label_alt_id',
-                'label_comp_id',
-                'label_asym_id',
-                'label_entity_id',
-                'label_seq_id',
-                'pdbx_PDB_ins_code',
-                'Cartn_x',
-                'Cartn_y',
-                'Cartn_z',
-                'occupancy',
-                'B_iso_or_equiv',
-                'pdbx_formal_charge',
-                'auth_seq_id',
-                'auth_comp_id',
-                'auth_asym_id',
-                'auth_atom_id',
-                'pdbx_PDB_model_num'
+    index = {'ATOM  ', 'HETATM'}
+    model = 1
+    items = []
+    for line in open(path, 'r'):
+        ind = line[:6]
+        if ind in index:
+            item = [
+                line[0 : 6],
+                line[6 :11],
+                line[12:16],
+                line[16:17],
+                line[17:20],
+                line[20:22],
+                line[22:26],
+                line[26:27],
+                line[30:38],
+                line[38:46],
+                line[46:54],
+                line[54:60],
+                line[60:66],
+                line[76:78],
+                line[78:80]
             ]
+            item = list(map(str.strip, item))
+            
+            auth_atom_id = item[2]
+            if auth_atom_id.startswith('"') or auth_atom_id.startswith("'"):
+                item[2] = auth_atom_id[1:-1]
+            
+            item += [model]
+            items.append(item)
+        elif ind == 'MODEL ':
+            model = int(line.split()[1])
+    
+    atom_site = pd.DataFrame(
+        items,
+        columns=[
+            'group_PDB',
+            'id',
+            'auth_atom_id',
+            'label_alt_id',
+            'auth_comp_id',
+            'auth_asym_id',
+            'auth_seq_id',
+            'pdbx_PDB_ins_code',
+            'Cartn_x',
+            'Cartn_y',
+            'Cartn_z',
+            'occupancy',
+            'B_iso_or_equiv',
+            'type_symbol',
+            'pdbx_formal_charge',
+            'pdbx_PDB_model_num'
         ]
-        struct = structure(tab)
-        struct.name = self.name
-        struct.fmt  = self.fmt
-        return struct
-    
-    
-    def to_cif(self, path: 'str') -> 'None':
-        folder = os.path.split(path)[0]
-        if folder:
-            os.makedirs(folder, exist_ok=True)
-        
-        file = open(path, 'w')
-        
-        struct = self.as_cif()
-        
-        title = 'data_{}\n'.format(struct.name.upper())
-        file.write(title)
-        header  = '# \nloop_\n'
-        for col in struct.columns:
-            header += '_atom_site.{}\n'.format(col)
-        file.write(header)
-        struct.to_string(file, header=False, index=False)
-        file.write('\n# \n')
-        
-        file.close()
-    
-    
-    def to_pdb(self, path:'str') -> 'None':
-        def one_letter_chain_renaming():
-            chain_lbl = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-            struct_chain_lbl = tab['auth_asym_id'].astype(str).unique()
-            free_chain_lbl  = [c for c in chain_lbl if c not in struct_chain_lbl]
-            
-            rnm = {}
-            cnt = 0
-            for lbl in struct_chain_lbl:
-                if len(lbl) > 1:
-                    try:
-                        rnm[lbl] = free_chain_lbl[cnt]
-                        cnt += 1
-                    except:
-                        raise Exception(
-                            'free_chain_lbl is over'
-                        )
-            if cnt:
-                tab['auth_asym_id'].replace(rnm, inplace=True)
-                for k, v in sorted(rnm.items(), key=lambda x:x[1]):
-                    rmk = _REMARK.format(k, v)
-                    rmk += ' ' * (80 - len(rmk)) + '\n'
-                    msg.append(rmk)
-            return msg
-        
-        folder = os.path.split(path)[0]
-        if folder:
-            os.makedirs(folder, exist_ok=True)
-        
-        file = open(path, 'w')
-        
-        tab = pd.DataFrame(self)
-        msg = []
-        if self.fmt != 'PDB':
-            msg = one_letter_chain_renaming()
-        
-        text = ''.join(msg)
-        for model_num, tt in tab.groupby('pdbx_PDB_model_num', sort=False):
-            text += _MODEL.format(model_num)
-            tt['id'] = range(1, len(tt) + 1)
-            chain_count = 0
-            for asym_id, ttt in tt.groupby('auth_asym_id', sort=False):
-                ttt['id'] = (ttt['id'] + chain_count) % 1_000_000
-                for item in ttt.iloc:
-                    text += _ATOM.format(**item)
-                item['id'] += 1
-                text  += _TER.format(**item)
-                chain_count += 1
-            text += _ENDMDL
-        file.write(text)
-    
-    def get_mask_by_res(struct:'structure', res:str) -> 'np.ndarray':
-        jsls = read_res(res)
-        
-        if jsls:
-            main_mask = np.array([False] * len(struct))
-            
-            for js in read_res(res):
-                cur_mask = np.array([True] * len(struct))
-                
-                if js['#']:
-                    cur_mask &= struct['pdbx_PDB_model_num'].eq(
-                        js['#']
-                    ).values
-                
-                if js['/']:
-                    cur_mask &= struct['auth_asym_id'].eq(
-                        js['/']
-                    ).values
-                
-                if js[':']:
-                    if js[':']['B']:
-                        cur_mask &= struct['auth_comp_id'].eq(
-                            js[':']['B']
-                        ).values
-                    
-                    if js[':']['2']:
-                        cur_mask &= struct['auth_seq_id'].between(
-                            js[':']['1'], 
-                            js[':']['2']
-                        ).values
-                    
-                    else:
-                        cur_mask &= struct['auth_seq_id'].eq(
-                            js[':']['1']
-                        ).values
-                
-                main_mask |= cur_mask
-        else:
-            main_mask = np.array([True] * len(struct))
-        
-        return main_mask
-    
-    
-    def get_substruct_by_res(self, res:'str', 
-                             neg:'bool' = False) -> 'structure':
-        
-        mask = self.get_mask_by_res(res)
-        if neg:
-            mask ^= True
-        struct = structure(self[mask])
-        struct.name = self.name
-        struct.fmt  = self.fmt
-        
-        return struct
-    
-    def describe_residues(self, resrepr:'dict') -> 'list':
-        coord = ['Cartn_x', 'Cartn_y', 'Cartn_z']
-        
-        table = pd.DataFrame(self)
-        table.set_index('auth_atom_id', inplace=True)
-        table['pdbx_PDB_ins_code'].replace('?', '', inplace=True)
-        
-        desc = []
-        for dssr, res in table.groupby(self.dssr_columns, sort=False):
-            flg = False
-            res_type = dssr[2]
-            if res_type not in resrepr:
-                continue
-            
-            currepr = resrepr[res_type]
-            m = []
-            for a in currepr:
-                try:
-                    v = res.loc[a.split(), coord].values
-                    m.append(v.mean(axis=0))
-                except:
-                    flg = True
-            if flg:
-                continue
-            
-            m = np.array(m)
-            desc.append((dssr, m))
-        return desc
-
-
-def read_cif(path: 'str', name: 'str' = None) -> structure:
-    al_col_pairs = (
-        ('auth_asym_id', 'label_asym_id'),
-        ('auth_seq_id',  'label_seq_id'),
-        ('auth_comp_id', 'label_comp_id'),
-        ('auth_atom_id', 'label_atom_id'),
     )
     
+    atom_site = atom_site.apply(pd.to_numeric)
+    
+    atom_site['pdbx_PDB_ins_code'].fillna('?', inplace=True)
+    atom_site['pdbx_formal_charge'].fillna('?', inplace=True)
+    atom_site['label_alt_id'].fillna('.', inplace=True)
+    
+    atom_site['label_atom_id'] = atom_site['auth_atom_id']
+    atom_site['label_comp_id'] = atom_site['auth_comp_id']
+    atom_site['label_asym_id'] = atom_site['auth_asym_id']
+    atom_site['label_seq_id']  = atom_site['auth_seq_id']
+    
+    entity_id = atom_site['label_asym_id'].unique()
+    entity_id = dict(zip(entity_id, range(1, len(entity_id) + 1)))
+    atom_site['label_entity_id'] = atom_site['label_asym_id'].replace(entity_id)
+    
+    atom_site = atom_site[
+        [
+            'group_PDB',
+            'id',
+            'type_symbol',
+            'label_atom_id',
+            'label_alt_id',
+            'label_comp_id',
+            'label_asym_id',
+            'label_entity_id',
+            'label_seq_id',
+            'pdbx_PDB_ins_code',
+            'Cartn_x',
+            'Cartn_y',
+            'Cartn_z',
+            'occupancy',
+            'B_iso_or_equiv',
+            'pdbx_formal_charge',
+            'auth_seq_id',
+            'auth_comp_id',
+            'auth_asym_id',
+            'auth_atom_id',
+            'pdbx_PDB_model_num'
+        ]
+    ]
+    
+    structure = Structure(name, atom_site)
+    
+    return structure
+
+
+def read_cif(path:'str', name:'str'=''):
     if not name:
-        name = os.path.splitext(path)[0]
-        name = name.split(os.sep)[-1]
+        name = os.path.basename(path).split(os.path.extsep)[0]
     
     with open(path, 'r') as file:
-        text = file.read()
+        data = file.read()
     
-    start = text.find('_atom_site.')
-    if start == -1:
-        raise Exception(
-            'File {} does not contain _atom_site table.'.format(path)
-        )
-    end = text.find('#', start) - 1
-    tab = text[start:end].split('\n')
+    start = data.find('_atom_site.')
+    end   = data.find('#', start) - 1
+    data  = data[start:end].split('\n')
     
     columns = []
-    for i, line in enumerate(tab):
+    for i, line in enumerate(data):
         if line.startswith('_'):
-            columns.append(line.split('.', 1)[1].strip())
+            columns.append(line.split('.')[1].strip())
         else:
             break
+    items = map(str.split, data[i:])
+    atom_site = pd.DataFrame(items, columns=columns)
     
-    items  = map(str.split, tab[i:])
-    struct = structure(items, columns=columns, name=name, fmt='CIF')
-    struct = struct.apply(pd.to_numeric)
+    quotes = atom_site['label_atom_id'].str.startswith(('"', '"'))
+    if quotes.any():
+        atom_site.loc[quotes, 'label_atom_id'] = \
+            atom_site[quotes]['label_atom_id'].str[1:-1]
+    if 'auth_atom_id' in atom_site:
+        quotes = atom_site['auth_atom_id'].str.startswith(('"', '"'))
+        if quotes.any():
+            atom_site.loc[quotes, 'auth_atom_id'] = \
+                atom_site[quotes]['auth_atom_id'].str[1:-1]
     
-    for a, l in al_col_pairs:
-        if a not in struct.columns:
-            struct[a] = struct[l]
+    atom_site = atom_site.apply(pd.to_numeric)
+    structure = Structure(name, atom_site)
     
-    l = lambda x: x[1:-1] if x.startswith('"') or x.startswith("'") else x
-    struct['label_atom_id'] = list(map(l, struct['label_atom_id']))
-    struct['auth_atom_id']  = list(map(l, struct['auth_atom_id']))
-    
-    return struct
+    return structure
 
 
-
-def read_pdb(path: 'str', name: 'str' = '') -> 'structure':
-    if not name:
-        name = os.path.splitext(path)[0]
-        name = name.split(os.sep)[-1]
-    
-    columns = (
-        'group_PDB',
-        'id',
-        'auth_atom_id',
-        'label_alt_id',
-        'auth_comp_id',
-        'auth_asym_id',
-        'auth_seq_id',
-        'pdbx_PDB_ins_code',
-        'Cartn_x',
-        'Cartn_y',
-        'Cartn_z',
-        'occupancy',
-        'B_iso_or_equiv',
-        'type_symbol',
-        'pdbx_formal_charge',
-        
-        'pdbx_PDB_model_num',   # extra column for the atomic coordinate table
-    )
-    
-    rec_names = {'ATOM  ', 'HETATM'}
-    cur_model = 1
-    items     = []
-    
-    file = open(path, 'r')
-    for line in file:
-        rec = line[0:6]
-        if rec in rec_names:
-            item = [
-                line[0 : 6].strip(), # group_PDB
-                line[6 :11].strip(), # id
-                line[12:16].strip(), # auth_atom_id
-                line[16:17].strip(), # label_alt_id
-                line[17:20].strip(), # auth_comp_id
-                line[20:22].strip(), # auth_asym_id
-                line[22:26].strip(), # auth_seq_id
-                line[26:27].strip(), # pdbx_PDB_ins_code
-                line[30:38].strip(), # Cartn_x
-                line[38:46].strip(), # Cartn_y
-                line[46:54].strip(), # Cartn_z
-                line[54:60].strip(), # occupancy
-                line[60:66].strip(), # B_iso_or_equiv
-                line[76:78].strip(), # type_symbol
-                line[78:80].strip(), # pdbx_formal_charge
-                cur_model            # pdbx_PDB_model_num
-            ]
-            items.append(item)
-        elif rec == 'MODEL ':
-            cur_model = int(line.split()[1])
-    file.close()
-    
-    struct = structure(items, columns=columns, name=name, fmt='PDB')
-    struct = struct.apply(pd.to_numeric)
-    struct.fillna('', inplace=True)
-    
-    l = lambda x: x[1:-1] if x.startswith('"') or x.startswith("'") else x
-    struct['auth_atom_id']  = list(map(l, struct['auth_atom_id']))
-    
-    return struct
-
-
-def read_res(res: str) -> list:
-    jsls = []
-    subres = res.split()
-    for sr in subres:
-        js = {
-            '#': None, # Model
-            '/': None, # Chain
-            ':': None  # Residues
-        }
-        
-        # split subres by # / : keys of js
-        seq = iter(sr)
-        c   = next(seq, False)
-        while c:
-            if c in js:
-                js[c] = ''
-                cc = next(seq, False)
-                while cc and cc not in js:
-                    js[c] += cc
-                    cc = next(seq, False)
-                else:
-                    c = cc
-            else:
-                c = next(seq, False)
-        
-        # Transfer string model No to integer
-        if js['#']:
-            js['#'] = int(js['#'])
-        elif js['#'] == None:
-            # By default model No = 1
-            js['#'] = 1
-        
-        # Correct / value
-        if js['/'] == '':
-            js['/'] = None
-        
-        # Parse : key
-        if js[':']:
-            elem = js[':'].split('_')
-            btp, num1, num2  = None, None, None
-            
-            btp = elem[0]
-            
-            if not elem[1].isdigit():
-                num1 = ''
-                for i, c in enumerate(elem[1]):
-                    num1 += c
-                num1 = int(num1)
-                btp = elem[1][i:]
-            else:
-                num1 = int(elem[1])
-            try:
-                num2 = int(elem[2])
-            except:
-                pass
-            
-            if btp == '':
-                btp = None
-            
-            js[':'] = {
-                'B': btp,
-                '1': num1,
-                '2': num2 
-            }
-        
-        jsls.append(js)
-    
-    return jsls
-
-
-
-#######
-# PDB save formats
-_ATOM   = '{group_PDB:<6}{id:>5} {auth_atom_id:<4}{label_alt_id:1}{auth_comp_id:>3}{auth_asym_id:>2}{auth_seq_id:>4}{pdbx_PDB_ins_code:1}   {Cartn_x:>8.3f}{Cartn_y:>8.3f}{Cartn_z:>8.3f}{occupancy:>6.2f}{B_iso_or_equiv:>6.2f}          {type_symbol:>2}{pdbx_formal_charge:>2}\n'
-_TER    = 'TER   {id:>5}      {auth_comp_id:>3}{auth_asym_id:>2}{auth_seq_id:>4}                                                      \n'
-_MODEL  = 'MODEL     {:>4}                                                                  \n'
-_REMARK = 'REMARK 250 CHAIN RENAMING {} -> {}'
-_ENDMDL = 'ENDMDL                                                                          \n'
+PDB_FORMAT = {
+    'ATOM'  : '{group_PDB:<6}{id:>5} {auth_atom_id:<4}{label_alt_id:1}{auth_comp_id:>3}{auth_asym_id:>2}{auth_seq_id:>4}{pdbx_PDB_ins_code:1}   {Cartn_x:>8.3f}{Cartn_y:>8.3f}{Cartn_z:>8.3f}{occupancy:>6.2f}{B_iso_or_equiv:>6.2f}          {type_symbol:>2}{pdbx_formal_charge:>2}\n',
+    'TER'   : 'TER   {id:>5}      {auth_comp_id:>3}{auth_asym_id:>2}{auth_seq_id:>4}                                                      \n',
+    'MODEL' : 'MODEL     {:>4}                                                                  \n',
+    'REMARK': 'REMARK 250 CHAIN RENAMING {} -> {}\n',
+    'ENDMDL': 'ENDMDL                                                                          \n',
+}

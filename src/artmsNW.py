@@ -1,5 +1,3 @@
-
-
 def SeqScore(seq1,seq2,i,j,weight=0.5):
 
     X = [s1[i] for s1 in seq1]
@@ -153,7 +151,7 @@ if __name__ == "__main__":
            [0,0,5,0],
            [0,0,0,7],
            [0,0,0,0]]
-
+    
     backtrack, score = GapGlobalAlign(seq1,seq2,sigma,epsilon,mat)
 
     aseq1 = OutputGapAlign1(backtrack,seq1,len(seq1[0]),len(seq2[0]))
@@ -163,6 +161,3 @@ if __name__ == "__main__":
         print(x)
     for x in aseq2:
         print(x)
-
-    
-    

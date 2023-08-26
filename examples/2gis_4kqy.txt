@@ -1,8 +1,0 @@
->2GIS_1|Chain A|SAM-I riboswitch
--GGCUUAUCAAGA-GAGGUGGAGGGACUGGCCCGAUGAAACCC-GGCAACC----------AGAAAU----------GGUGCCAAUUCCUGCAGCG-GAAA--CGUUGAAAGAUGAGCCA
--abcdefghjklm.n.opruvwxyzABCDEzyxHIJKFGrpon.LMNOPQR..........S1234S..........RQONMLTUVWEDCBXYZ56.7890..65ZYXstWhgfedcbai
--((((((((....-(.(((...(((.[.[[)))......))))-(((..((----------(....)----------)).)))...(]].](((((-....--)))))..))))))))).
->4KQY_1|Chain A|YitJ S box/SAM-I riboswitch|Bacillus subtilis (1192196)
-GUUCUUAUCAAGAGA-AGCAGAGGGACUGGCCCGACGAAGCUUCAGCAACCGGUGUAAUGGCGAAAGCCAUGACCAAGGUGCUAAAUCCAGCAAGCUCGAACAGCUUGGAAGAUAAGAAC
-.abcdefghjklm.n.opruvwxyzABCDEzyxHIJKFGrpon.LMNOPQR..........S1234S..........RQONMLTUVWEDCBXYZ56.7890..65ZYXstWhgfedcbai
-(((((((((....((-(((...(((.[[[[)))......)))))(((..(((((...(((((....))))).)))..)).)))...(]]]](((((.......)))))..))))))))))

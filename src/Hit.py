@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.spatial import KDTree
 
-from Kabsch import transform
+from src.Kabsch import transform
 
 
 def getHit(

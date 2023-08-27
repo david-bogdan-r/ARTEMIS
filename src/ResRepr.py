@@ -38,32 +38,25 @@ class ResRepr:
     def __repr__(self) -> 'str':
         return '<{} ResRepr>'.format(self)
 
-    def __resRepr(self, atom_site:'pd.DataFrame') -> 'np.ndarray|None':
+    def resRepr(self, atom_site:'pd.DataFrame') -> 'np.ndarray|None':
 
-        base    = atom_site.name[2]
+        base    = atom_site['auth_comp_id'].iloc[0]
         resrepr = self.repr.get(base)
 
         if not resrepr:
             return None
 
-        diff = self.atom[base].difference(atom_site.index)
-
-        if not diff.empty:
-            if ((len(diff) == 1)
-                and (diff[0] == 'P')
-                and ("O5'" in atom_site.index)):
-
-                atom_site.loc['P'] = atom_site.loc[b"O5'"]
-
-            else:
-                return None
-
         mat = []
 
         for atom in resrepr:
-            coord = atom_site.loc[atom, CRDN].values
+            inter = atom.intersection(atom_site.index)
 
-            if len(atom) > 1:
+            if inter.empty:
+                return None
+
+            coord = atom_site.loc[inter, CRDN].values
+
+            if len(inter) > 1:
                 coord = coord.mean(axis=0)
 
             mat.append(coord)
@@ -80,6 +73,6 @@ class ResRepr:
 
         res = (atom_site
               .groupby(MCBI, sort=False)
-              .apply(self.__resRepr)) # type: ignore
+              .apply(self.resRepr)) # type: ignore
 
         return res

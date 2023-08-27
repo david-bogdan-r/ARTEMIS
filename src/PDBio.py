@@ -125,6 +125,7 @@ def as_pdb(text:'str') -> 'pd.DataFrame':
             m = l.split()[1]
 
     atom_site = pd.DataFrame(a).apply(pd.to_numeric)
+    atom_site['auth_asym_id'] = atom_site['auth_asym_id'].astype(str)
 
     return atom_site
 
@@ -145,6 +146,7 @@ def as_cif(text:'str') -> 'pd.DataFrame':
     a = map(str.split, t[i:])
     atom_site = pd.DataFrame(a, columns=columns)
     atom_site = atom_site.apply(pd.to_numeric)
+    atom_site['auth_asym_id'] = atom_site['auth_asym_id'].astype(str)
 
     for col in ['label_atom_id', 'auth_atom_id']:
         if col in atom_site.columns:
@@ -441,3 +443,129 @@ def atom_id_PDBformat(atom:'pd.Series') -> 'str':
 
     else:
         return atom_id
+
+def specParse(spec:'str') -> 'list':
+
+    def parse(spec:'str') -> 'tuple':
+
+        model:'int|None|str' = ''
+        chain:'str|None'     = ''
+        base :'str|None'     = ''
+        start:'int|None|str' = ''
+        end  :'int|None|str' = ''
+
+        resid:'str'          = ''
+
+        model_is_None = True
+
+        state = -1
+        for c in spec:
+            if c == '#':
+                state = 0
+                model_is_None = False
+                continue
+            elif c == '/':
+                state = 1
+                continue
+            elif c == ':':
+                state = 2
+                continue
+
+            if state == 0:
+                model += c
+            elif state == 1:
+                chain += c
+            elif state == 2:
+                resid += c
+
+        if model:
+            model = int(model)
+        else:
+            if model_is_None:
+                model = None
+
+        if not chain:
+            chain = None
+
+        state = 0
+        for c in resid:
+            if c == '_':
+                state += 1
+                continue
+
+            if state == 0:
+                base += c
+
+            elif state == 1:
+                start += c
+
+            elif state == 2:
+                end += c
+
+        if not end:
+            end = None
+        else:
+            end = int(end)
+
+        if start:
+            if not start.isdigit():
+                ch = ''
+                dg = ''
+
+                for c in start:
+                    if c.isdigit():
+                        dg += c
+                    else:
+                        ch += c
+
+                start = dg
+
+                if not base and end is None:
+                    base  = ch
+
+            else:
+                start = int(start)
+        else:
+            start = None
+
+        if not base:
+            base = None
+
+
+        return model, chain, base, start, end
+
+    return [parse(s) for s in spec.split()]
+
+def getResSpec(res:'np.ndarray', spec:'str', neg:'bool'=False) -> 'list':
+
+    n   = len(res)
+    msk = np.array([False] * n)
+
+    res = res.T
+    for m, c, b, s, e in specParse(spec):
+
+        cur_msk = np.array([True] * n)
+
+        if m is not None:
+            if isinstance(m, int):
+                cur_msk &= res[0] == m
+
+        if c is not None:
+            cur_msk &= res[1] == c
+
+        if b is not None:
+            cur_msk &= res[2] == b
+
+        if s is not None:
+            if e is not None:
+                cur_msk &= (s <= res[3]) & (res[3] <= e)
+            else:
+                cur_msk &= res[3] == s
+
+        msk |= cur_msk
+    res = res.T
+
+    if neg:
+        msk ^= True
+
+    return [tuple(r) for r in res[msk]]

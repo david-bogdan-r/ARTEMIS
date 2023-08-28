@@ -6,11 +6,45 @@ from datetime import datetime as dt
 from functools import partial
 from heapq import nlargest as nlargestf
 from typing import Iterable
+import numpy as np
 
-from src.DataModel import DataModel, dataModel
-from src.Hit import getHit, mutuallyClosest
+from src.DataModel import DataModel, dataModel, MCBI
+from src.Hit import getHit, mutuallyClosest, hitFromAli
 from src.ResRepr import ResRepr
 from src.Align import Impose, Align
+
+output = '''
+ ********************************************************************
+ * ARTEMIS (Version 20230828)                                       *
+ * Align Rna TErtiary Motis Impoved Sequences                       *
+ * Reference: DR Bohdan, JM Bujnicki, EF Baulin (2023) NAR          *
+ * Please email comments and suggestions to bogdan.d@phystech.edu   *
+ ********************************************************************
+
+Name of structure r: {r}
+Name of structure q: {q} (to be superimposed onto structure r)
+Length of structure r: {Lr} residues
+Length of structure q: {Lq} residues
+
+Aligned length= {Lali}, RMSD= {RMSD:6.2f}, Seq_ID=n_identical/n_aligned= {seqID:4.3f}
+TM-score= {TMr:6.5f} (normalized by length of structure r: L={Lr}, d0={d0r:.2f})
+TM-score= {TMq:6.5f} (normalized by length of structure q: L={Lq}, d0={d0q:.2f})
+(You should use TM-score normalized by length of the reference structure)
+
+(":" denotes residue pairs of d < 5.0 Angstrom, "." denotes other aligned residues)
+{rAli}
+{dist}
+{qAli}
+
+Alignment with permutations:
+Aligned length= {pLali}
+TM-score= {pTMr:6.5f} (normalized by length of structure r)
+TM-score= {pTMq:6.5f} (normalized by length of structure q)
+RMSD= {pRMSD:6.2f}
+Seq_ID=n_identical/n_aligned= {pseqID:4.3f}
+
+#Total CPU time is {time_total:5.2f} seconds
+'''
 
 BASEDIR  = os.path.dirname(__file__)
 HELP     = {'--H', '-H', '--h', '-h', '--help', '-help'}
@@ -71,13 +105,10 @@ class ARTEMIS:
                                rseq=r.seq, qseq=q.seq,
                                impose=self.impose)
 
-        self.ans  = None
-        self.ans1 = None
-        self.ans2 = None
+        self.ans1:'list' = []
+        self.ans2:'list' = []
 
     def run(self):
-
-        tic = dt.now()
 
         r = self.r
         q = self.q
@@ -103,29 +134,9 @@ class ARTEMIS:
         toc = dt.now()
         time_total = round((toc - tic).total_seconds(), 4)
 
-        rAli, qAli = ans2[1][-1]
-        Lali = sum(i != '-' and j != '-' for i, j in zip(rAli, qAli))
-
-
         self.ans1 = ans1[0]
-        self.ans2 = ans2[1]
-        self.ans  = {
-            'PDB1'  : r.name,
-            'PDB2'  : q.name,
-            'L1'    : r.L,
-            'L2'    : q.L,
-            'Lali'  : Lali,
-            'TM1'   : round(ans2[1][1][0], 4), # type: ignore
-            'TM2'   : round(ans2[1][1][1], 4), # type: ignore
-            'RMSD'  : round(ans2[1][2], 4), # type: ignore
-            'pTM1'  : round(ans1[0][1][0], 4),
-            'pTM2'  : round(ans1[0][1][1], 4),
-            'pRMSD' : round(ans1[0][2], 4),
-            'time_total': time_total,
-            'Ali1'  : rAli,
-            'Ali2'  : qAli,
-        }
-
+        self.ans2 = ans2[1] # type: ignore
+        self.time_total = time_total
 
     def get_hit(self, seed:'Iterable'):
 
@@ -138,7 +149,6 @@ class ARTEMIS:
             hits = [hit(*s) for s in seed]
 
         return hits
-
 
     def get_seed(self, step_divider:'int|float'=0):
 
@@ -175,8 +185,184 @@ class ARTEMIS:
         return seed
 
 
+    def show(self):
+
+        rmodel = self.r
+        qmodel = self.q
+
+        ans1 = self.ans1
+        ans2 = self.ans2
+
+        rAli, qAli = ans2[-1]
+        Lali = sum(i != '-' and j != '-' for i, j in zip(rAli, qAli))
+
+        h = hitFromAli(rAli, qAli)
+
+        rm = rmodel.m[h[0]]
+        a, b = ans2[0]
+        qm = np.dot(qmodel.m[h[1]], a) + b
+
+        d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
+
+        dist = []
+        i = -1
+        j = -1
+        m = -1
+        for k in range(len(rAli)):
+            b1 = rAli[k] != '-'
+            b2 = qAli[k] != '-'
+
+            if b1:
+                i += 1
+            if b2:
+                j += 1
+
+            if b1 and b2:
+                m += 1
+                if d[m] < 5:
+                    dist.append(':')
+                else:
+                    dist.append('.')
+            else:
+                dist.append(' ')
+        dist = ''.join(dist)
+
+        n_identical = sum(c1 == c2 for c1, c2 in zip(rAli, qAli))
+        n_aligned   = Lali
+
+        seqID = n_identical / n_aligned
+
+        rpath = r
+        qpath = q
+
+        rchain = rmodel.i.get_level_values(1).unique()
+        if len(rchain) == 1:
+            rpath += ':' + rchain[0]
+
+        qchain = qmodel.i.get_level_values(1).unique()
+        if len(qchain) == 1:
+            qpath += ':' + qchain[0]
+
+        h = ans1[-1]
+        p_n_aligned = len(h[0])
+
+        ri = rmodel.i[h[0]].to_list()
+        qi = qmodel.i[h[1]].to_list()
+
+        p_n_identical = 0
+        for rr, qr in zip(ri, qi):
+            if rr[2] == qr[2]:
+                p_n_identical += 1
+
+        pseqID = p_n_identical / p_n_aligned
+
+        toc = dt.now()
+
+        ans  = {
+            'r'     : rpath,
+            'q'     : qpath,
+            'Lr'    : rmodel.L,
+            'Lq'    : qmodel.L,
+            'Lali'  : Lali,
+            'TMr'   : ans2[1][0],
+            'TMq'   : ans2[1][1],
+            'RMSD'  : ans2[2],
+            'rAli'  : rAli,
+            'dist'  : dist,
+            'qAli'  : qAli,
+            'seqID' : seqID,
+            'pLali' : p_n_aligned,
+            'pTMr'  : ans1[1][0],
+            'pTMq'  : ans1[1][1],
+            'pRMSD' : ans1[2],
+            'pseqID': pseqID,
+            'd0r'   : rmodel.d0,
+            'd0q'   : qmodel.d0,
+            'time_total': (toc - tic).total_seconds(),
+        }
+
+        print(output.format(**ans),end='')
+
+
+    def save(self) -> 'None':
+
+        q = self.q
+
+        ans1 = self.ans1
+        ans2 = self.ans2
+
+        if os.path.isdir(saveto): # type: ignore
+            files = set(os.listdir(saveto))
+        else:
+            files = set()
+
+        a, b = ans2[0]
+        qq = q.copy()
+        qq.coord = np.dot(qq.coord, a) + b
+        qq.atom_site = (qq.atom_site
+                        .set_index(MCBI).loc[q.saveres]
+                        .reset_index()[q.atom_site.columns])
+
+        fname = q.name + saveformat
+        i = 0
+        while fname in files:
+            fname = q.name + ' ({})'.format(i) + saveformat
+            i += 1
+
+        if saveformat == '.pdb':
+            qq.to_pdb('{}/{}'.format(saveto, fname))
+        else:
+            qq.to_cif('{}/{}'.format(saveto, fname))
+
+
+        a, b = ans1[0]
+        qq = q.copy()
+        qq.coord = np.dot(qq.coord, a) + b
+        qq.atom_site = (qq.atom_site
+                        .set_index(MCBI).loc[q.saveres]
+                        .reset_index()[q.atom_site.columns])
+
+        fname = q.name + '_p' + saveformat
+        i = 0
+        while fname in files:
+            fname = q.name + '_p ({})'.format(i) + saveformat
+            i += 1
+
+        if saveformat == '.pdb':
+            qq.to_pdb('{}/{}'.format(saveto, fname))
+        else:
+            qq.to_cif('{}/{}'.format(saveto, fname))
+
+
+        h  = ans1[-1]
+
+        rm = self.r.m[h[0]]
+        qm = np.dot(q.m[h[1]], a) + b
+        d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
+
+        ri = self.r.i[h[0]].to_list()
+        qi = self.q.i[h[1]].to_list()
+
+        fname = 'pali.txt'
+        i = 0
+        while fname in files:
+            fname = 'pali ({}).txt'.format(i)
+            i += 1
+
+        text = '{}\tdist\t{}\n'.format(self.r, self.q)
+        for i, (ii, jj) in enumerate(zip(ri, qi)):
+            text += "{}\t{:.2}\t{}\n".format('.'.join(list(map(str, ii))),
+                                             d[i],
+                                             '.'.join(list(map(str, jj))))
+
+        with open('{}/{}'.format(saveto, fname), 'w') as file:
+            file.write(text)
+
+
 
 if __name__ == '__main__':
+
+    tic = dt.now()
 
     # Argument parsing 
 
@@ -186,7 +372,20 @@ if __name__ == '__main__':
             exit()
 
 
-    kwargs = dict(arg.split('=') for arg in sys.argv[1:])
+    args   = sys.argv[1:]
+    kwargs = {}
+    i = 0
+    while i != len(args):
+        k = args[i]
+        if k.startswith('-'):
+            k = k.strip('-')
+            i += 1
+            v = args[i]
+            kwargs[k] = v
+        else:
+            k, v = k.split('=')
+            kwargs[k] = v
+        i += 1
 
     r = kwargs.get('r', r)
     q = kwargs.get('q', q)
@@ -267,6 +466,12 @@ if __name__ == '__main__':
     saveformat = kwargs.get('saveformat', qformat)
     saveres    = kwargs.get('saveres', qres)
 
+    saveformat_ = saveformat.strip('.').upper()
+    if saveformat_ in FORMAT:
+        saveformat = FORMAT[saveformat_]
+    else:
+        saveformat = '.pdb'
+
     threads = float(kwargs.get('threads', threads)) # type: ignore
     if threads < 1:
         threads = mp.cpu_count()
@@ -310,8 +515,14 @@ if __name__ == '__main__':
     if not nlargest:
         nlargest = qmodel.L
 
+
     # ARTEMIS
+
     artemis = ARTEMIS(rmodel, qmodel)
     artemis.run()
 
-    print(artemis.ans)
+    if saveto:
+        saveto = saveto.strip(os.sep)
+        artemis.save()
+
+    artemis.show()

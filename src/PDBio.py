@@ -437,7 +437,7 @@ def atom_id_PDBformat(atom:'pd.Series') -> 'str':
     if len(atom_id) == 4:
         return atom_id
 
-    elif type_symbol:
+    elif isinstance(type_symbol, str) and type_symbol:
         suff = atom_id[len(type_symbol):]
         return '{:>2}'.format(type_symbol) + '{:<2}'.format(suff)
 

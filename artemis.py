@@ -16,9 +16,9 @@ from src.Align import Impose, Align
 output = '''
  ********************************************************************
  * ARTEMIS (Version 20230828)                                       *
- * Align Rna TErtiary Motis Impoved Sequences                       *
- * Reference: DR Bohdan, JM Bujnicki, EF Baulin (2023) NAR          *
- * Please email comments and suggestions to bogdan.d@phystech.edu   *
+ * using ARTEM to Infer Sequence alignment                          *
+ * Reference: TODO                                                  *
+ * Please email comments and suggestions to dav.bog.rom@gmail.com   *
  ********************************************************************
 
 Name of structure r: {r}
@@ -286,6 +286,7 @@ class ARTEMIS:
 
     def save(self) -> 'None':
 
+        r = self.r
         q = self.q
 
         ans1 = self.ans1
@@ -303,16 +304,40 @@ class ARTEMIS:
                         .set_index(MCBI).loc[q.saveres]
                         .reset_index()[q.atom_site.columns])
 
-        fname = q.name + saveformat
+        fname = '{}_to_{}{}'.format(q.name, r.name, saveformat)
         i = 0
         while fname in files:
-            fname = q.name + ' ({})'.format(i) + saveformat
+            fname = '{}_to_{}_{}{}'.format(q.name, r.name, i, saveformat)
             i += 1
 
         if saveformat == '.pdb':
             qq.to_pdb('{}/{}'.format(saveto, fname))
         else:
             qq.to_cif('{}/{}'.format(saveto, fname))
+
+        h  = hitFromAli(*ans2[-1])
+
+        rm = self.r.m[h[0]]
+        qm = np.dot(q.m[h[1]], a) + b
+        d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
+
+        ri = self.r.i[h[0]].to_list()
+        qi = self.q.i[h[1]].to_list()
+
+        fname = '{}_to_{}.tsv'.format(q.name, r.name)
+        i = 0
+        while fname in files:
+            fname = '{}_to_{}_{}.tsv'.format(q.name, r.name, i)
+            i += 1
+
+        text = '{}\tdist\t{}\n'.format(self.r, self.q)
+        for i, (ii, jj) in enumerate(zip(ri, qi)):
+            text += "{}\t{:.2}\t{}\n".format('.'.join(list(map(str, ii))),
+                                             d[i],
+                                             '.'.join(list(map(str, jj))))
+
+        with open('{}/{}'.format(saveto, fname), 'w') as file:
+            file.write(text)
 
 
         a, b = ans1[0]
@@ -322,10 +347,10 @@ class ARTEMIS:
                         .set_index(MCBI).loc[q.saveres]
                         .reset_index()[q.atom_site.columns])
 
-        fname = q.name + '_p' + saveformat
+        fname = '{}_to_{}_p{}'.format(q.name, r.name, saveformat)
         i = 0
         while fname in files:
-            fname = q.name + '_p ({})'.format(i) + saveformat
+            fname = '{}_to_{}_p_{}{}'.format(q.name, r.name, i, saveformat)
             i += 1
 
         if saveformat == '.pdb':
@@ -343,10 +368,10 @@ class ARTEMIS:
         ri = self.r.i[h[0]].to_list()
         qi = self.q.i[h[1]].to_list()
 
-        fname = 'pali.txt'
+        fname = '{}_to_{}_p.tsv'.format(q.name, r.name)
         i = 0
         while fname in files:
-            fname = 'pali ({}).txt'.format(i)
+            fname = '{}_to_{}_p_{}.tsv'.format(q.name, r.name, i)
             i += 1
 
         text = '{}\tdist\t{}\n'.format(self.r, self.q)

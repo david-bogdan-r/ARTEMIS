@@ -105,18 +105,19 @@ def dataModel(
         inplace=True
     )
 
-    atom_site_ = atom_site[atom_site['auth_comp_id'].isin(resRepr.repr.keys())]
-    r      = resRepr.apply(atom_site_)
+    res_atom_site = (atom_site[atom_site['auth_comp_id']
+                               .isin(resRepr.repr.keys())])
+
+    r      = resRepr.apply(res_atom_site)
     rarray = r.reset_index()[MCBI].values
+    res    = r.loc[getResSpec(rarray, resSpec , resneg)]
 
-    res     = r.loc[getResSpec(rarray, resSpec , resneg)]
-
-    atom_site_ = atom_site.set_index(MCBI).loc[res.index]
-    atom_site_.set_index('auth_atom_id', inplace=True)
+    atom_site_c = res_atom_site.set_index(MCBI).loc[res.index]
+    atom_site_c.set_index('auth_atom_id', inplace=True)
 
     i = res.index
     c = res.values
-    m = atom_site_.loc["C3'", CRDN].values # type: ignore
+    m = atom_site_c.loc["C3'", CRDN].values # type: ignore
     t = KDTree(m)
 
     if seedSpec == resSpec and resneg:

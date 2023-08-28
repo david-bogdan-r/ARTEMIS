@@ -194,7 +194,7 @@ ARTEMIS was tested with two different Python3 environments:
         Number of CPUs to use. ARTEM multiprocessing is available only for 
         UNIX-like systems.
 
-    ***********************************************************************
+    ***************************************************************************
     ARTEM uses a ChimeraX-like format to specify the residues of interest 
     using the "res" parameters:
 

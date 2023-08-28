@@ -59,7 +59,7 @@ ARTEMIS was tested with two different Python3 environments:
 
 ## Usage examples
 
-    1) python3 artemis.py r=examples/1ivs.cif  q=examples/1wz2.cif rres=/C qres=/C > output.txt
+    1) python3 artemis.py r=examples/6ugg/6ugg.cif  q=examples/1ivs.pdb rres=/B qres=/C > output.txt
 
     This command will write into "output.txt" file a sorted list of all local 
     structural superpositions between the C chains of 1IVS and 1WZ2 PDB entries 

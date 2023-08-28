@@ -151,7 +151,7 @@ class ARTEMIS:
         q = self.q
 
         if step_divider:
-            step = 1 + q.L // step_divider
+            step = 1 + int(q.L // step_divider)
             seed = itertools.product(
                 r.seed[::step].dropna(), 
                 q.seed.dropna()
@@ -517,7 +517,7 @@ if __name__ == '__main__':
     )
 
 
-    default_state = qmodel.L >= 500
+    default_state = qmodel.seed.notna().sum() >= 500
 
     nlargest     = int(kwargs.get('nlargest', (qmodel.L, 2*threads)[default_state]))
     shift        = float(kwargs.get('shift', (3, 20)[default_state]))

@@ -6,7 +6,7 @@ Using [ARTEM](https://github.com/david-bogdan-r/ARTEM) to Infer Sequence alignme
 
 ## How ARTEMIS works
 
-ARTEMIS reads a reference and a query structure from the specified coordinate files in PDB or in mmCIF format and finds two alignments of structure sequences. The first alignment does not allow rearrangement and is fed to the standard output. The second alignment allows permutations and only its characteristics are fed to the standard output. The user can choose to save the query structure superpositions in PDB or mmCIF format and the table of permutation alignment residue correspondences to a specified folder. By default, ARTEMIS reads the entire first models of the input files.
+ARTEMIS reads a reference and a query structure from the specified coordinate files in PDB or in mmCIF format and finds two alignments of structure sequences. The first alignment does not allow rearrangement and is fed to the standard output. The second alignment allows permutations and only its characteristics are fed to the standard output. The user can choose to save the query structure superpositions in PDB or mmCIF format and the tables of residue correspondences to a specified folder. By default, ARTEMIS reads the entire first models of the input files.
 
 The ARTEMIS algorithm works as follows:
 
@@ -19,7 +19,9 @@ The ARTEMIS algorithm works as follows:
     - multiply the matrix of distances between C3' atoms of superimposed structures by -1;
     - shift the matrix to the left by the minimum value in it;
     - shift the matrix to the left by the minimum value in the cells of residue pairs from the permutation alignment (the matrix stays non-negative);
-    - 
+    - shift the matrix to the left by the *shift* value to promote alignment of residue pairs at a distance less than *shift*
+  - finding an **alignment** by Needleman-Wunsch Algorithm
+- select the better alignments by TM-score sum for the two structures.
 
 ## Installation
 
@@ -130,21 +132,6 @@ ARTEMIS was tested with two different Python3 environments:
         and it's either "PDB", "CIF", or "MMCIF" (case-insensitive), 
         ARTEM will treat the reference (query) coordinate file
         as the specified format.
-
-    rmsdmin=FLOAT, rmsdmax=FLOAT [DEFAULT: rmsdmin=0,rmsdmax=1e10]
-        The specification of minimum and maximum RMSD thresholds. 
-        ARTEM will print and save only the superpositions that satisfy 
-        the specified thresholds. 
-
-    rmsdsizemin=FLOAT, rmsdsizemax=FLOAT [DEFAULT: rmsdsizemin=0,rmsdsizemax=1e10]
-        The specification of minimum and maximum RMSD/SIZE ratio thresholds. 
-        ARTEM will print and save only the superpositions that satisfy 
-        the specified thresholds. 
-
-    resrmsdmin=FLOAT, resrmsdmax=FLOAT [DEFAULT: resrmsdmin=0, resrmsdmax=1e10]
-        The specification of minimum and maximum per-residue RMSD threshold.
-        ARTEM will print and save only the superpositions that satisfy 
-        the specified thresholds.
 
     rres=STRING, qres=STRING [DEFAULT: rres="#1",qres="#1"]
         The specification of the input reference (rres) and query (qres) 

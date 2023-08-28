@@ -74,7 +74,7 @@ saveto:'str|None' = None
 saveformat:'str'  = qformat
 saveres:'str'     = '#'
 
-threads:'int' = 1
+threads:'int' = mp.cpu_count()
 
 matchrange:'float' = 3.5
 

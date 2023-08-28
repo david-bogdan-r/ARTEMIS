@@ -105,7 +105,8 @@ def dataModel(
         inplace=True
     )
 
-    r      = resRepr.apply(atom_site)
+    atom_site_ = atom_site[atom_site['auth_comp_id'].isin(resRepr.repr.keys())]
+    r      = resRepr.apply(atom_site_)
     rarray = r.reset_index()[MCBI].values
 
     res     = r.loc[getResSpec(rarray, resSpec , resneg)]

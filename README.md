@@ -6,9 +6,20 @@ Using [ARTEM](https://github.com/david-bogdan-r/ARTEM) to Infer Sequence alignme
 
 ## How ARTEMIS works
 
-ARTEM reads a reference and a query structure from the specified coordinate files in PDB or in mmCIF format, and, by default, prints a sorted list of their local structural superpositions. The user can choose to save the superimposed versions of the query structure into a specified folder in PDB or in mmCIF format. Each of the saved files will include three models: (1) the entire (according to the "qres" parameter) superimposed query structure, (2) the subset of the reference structure residues used for the superposition, and (3) the subset of the query structure residues used for the superposition. By default, ARTEM reads the entire first models of the input files.
+ARTEMIS reads a reference and a query structure from the specified coordinate files in PDB or in mmCIF format and finds two alignments of structure sequences. The first alignment does not allow rearrangement and is fed to the standard output. The second alignment allows permutations and only its characteristics are fed to the standard output. The user can choose to save the query structure superpositions in PDB or mmCIF format and the table of permutation alignment residue correspondences to a specified folder. By default, ARTEMIS reads the entire first models of the input files.
 
-The ARTEM algorithm works as follows. For each possible single-residue matching seed between the reference and the query structures (as defined by "rseed" and "qseed" parameters) ARTEM superimposes the structures based on the 5-atom representations of the two residues. Then, ARTEM searches for a subset of the reference and query residues that are mutually closest to each other in the current superposition. Finally, ARTEM performs a second superposition using the subset of the mutually closest residues as the assigned residue-residue matchings. Finally, ARTEM prints a sorted list of the produced superpositions to stdout. For each superposition the output includes its ID, RMSD, SIZE, RMSD/SIZE ratio, the list of generative single-residue seeds (PRIM), and the list of the residue-residue matchings (SCND).
+The ARTEMIS algorithm works as follows:
+
+- perform superpositions of the query structure on the reference structure by each possible pair of residues between them (the superposition operator is calculated using Kabsch's algorithm between 3-atom coordinate representations of residues);
+- in each superposition find a set of residue pairs between structures with a distance not greater than *matchrange* angstroms between C3' atoms;
+- among the *nlagest* largest sets of residue pairs, build alignments with and without permutations:
+  - by the subset of mutually closest pairs superimpose the query structure on the reference structure (3-atom coordinate representations of residues);
+  - closest pairs of residues between resuperimposed structures with the distance between C3' atoms not greater than 8 angstroms are considered to be **alignments with permutations**;
+  - calculate the score matrix:
+    - multiply the matrix of distances between C3' atoms of superimposed structures by -1;
+    - shift the matrix to the left by the minimum value in it;
+    - shift the matrix to the left by the minimum value in the cells of residue pairs from the permutation alignment (the matrix stays non-negative in the cells of such pairs);
+    - 
 
 ## Installation
 
@@ -44,7 +55,7 @@ ARTEMIS was tested with two different Python3 environments:
 
 ## Usage
 
-    python3 artem.py r=FILENAME q=FILENAME [OPTIONS]
+    python3 artemis.py r=FILENAME q=FILENAME [OPTIONS]
 
 ## Usage examples
 

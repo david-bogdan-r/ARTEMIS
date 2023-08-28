@@ -347,7 +347,7 @@ class Model:
 
                 ii += 1
                 a0['id'] = ii % 100_000
-                text += Model.PDBFORMAT['TER'].format(**a0) # type: ignore
+                text += PDBFORMAT['TER'].format(**a0) # type: ignore
                 text += 'ENDMDL\n'
 
                 m0 = a['pdbx_PDB_model_num']
@@ -359,7 +359,7 @@ class Model:
                 c0  = a['auth_asym_id']
                 ii += 1
                 a0['id'] = ii % 100_000
-                text += Model.PDBFORMAT['TER'].format(**a0) # type: ignore
+                text += PDBFORMAT['TER'].format(**a0) # type: ignore
 
             ii += 1
             a['id'] = ii % 100_000

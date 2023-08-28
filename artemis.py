@@ -307,7 +307,7 @@ class ARTEMIS:
         fname = '{}_to_{}{}'.format(q.name, r.name, saveformat)
         i = 0
         while fname in files:
-            fname = '{}_to_{}_{}{}'.format(q.name, r.name, i, saveformat)
+            fname = '{}_to_{}_({}){}'.format(q.name, r.name, i, saveformat)
             i += 1
 
         if saveformat == '.pdb':
@@ -327,7 +327,7 @@ class ARTEMIS:
         fname = '{}_to_{}.tsv'.format(q.name, r.name)
         i = 0
         while fname in files:
-            fname = '{}_to_{}_{}.tsv'.format(q.name, r.name, i)
+            fname = '{}_to_{}_({}).tsv'.format(q.name, r.name, i)
             i += 1
 
         text = '{}\tdist\t{}\n'.format(self.r, self.q)
@@ -350,7 +350,7 @@ class ARTEMIS:
         fname = '{}_to_{}_p{}'.format(q.name, r.name, saveformat)
         i = 0
         while fname in files:
-            fname = '{}_to_{}_p_{}{}'.format(q.name, r.name, i, saveformat)
+            fname = '{}_to_{}_p_({}){}'.format(q.name, r.name, i, saveformat)
             i += 1
 
         if saveformat == '.pdb':
@@ -371,7 +371,7 @@ class ARTEMIS:
         fname = '{}_to_{}_p.tsv'.format(q.name, r.name)
         i = 0
         while fname in files:
-            fname = '{}_to_{}_p_{}.tsv'.format(q.name, r.name, i)
+            fname = '{}_to_{}_p_({}).tsv'.format(q.name, r.name, i)
             i += 1
 
         text = '{}\tdist\t{}\n'.format(self.r, self.q)

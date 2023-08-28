@@ -80,11 +80,9 @@ matchrange:'float' = 3.5
 
 resrepr:'str' = 'artemis'
 
-step_divider:'int|float' = 0
-
-nlargest:'int' = 0
-
-shift:'float'  = 3
+step_divider:'float'
+nlargest:'int'
+shift:'float'
 
 class ARTEMIS:
 
@@ -109,9 +107,6 @@ class ARTEMIS:
         self.ans2:'list' = []
 
     def run(self):
-
-        r = self.r
-        q = self.q
 
         seed = self.get_seed(step_divider=step_divider)
 
@@ -155,28 +150,15 @@ class ARTEMIS:
         r = self.r
         q = self.q
 
-        if isinstance(step_divider, int):
-            if step_divider == 0:
-                seed = itertools.product(
-                    r.seed.dropna(), 
-                    q.seed.dropna()
-                )
-
-            else:
-                step = 1 + q.L // step_divider
-                seed = itertools.product(
-                    r.seed[::step].dropna(), 
-                    q.seed.dropna()
-                )
-
-        elif isinstance(step_divider, float):
-            step = int(step_divider * q.L)
+        if step_divider:
+            step = 1 + q.L // step_divider
             seed = itertools.product(
                 r.seed[::step].dropna(), 
                 q.seed.dropna()
             )
 
         else:
+
             seed = itertools.product(
                 r.seed.dropna(), 
                 q.seed.dropna()
@@ -505,8 +487,6 @@ if __name__ == '__main__':
 
     matchrange = float(kwargs.get('matchrange', matchrange))
 
-    if 'nlargest' in kwargs:
-        nlargest = int(kwargs['nlargest'])
 
     # Set multiprocess start method
 
@@ -537,8 +517,14 @@ if __name__ == '__main__':
     )
 
 
-    if not nlargest:
-        nlargest = qmodel.L
+    default_state = qmodel.L >= 500
+
+    nlargest     = int(kwargs.get('nlargest', (qmodel.L, 2*threads)[default_state]))
+    shift        = float(kwargs.get('shift', (3, 20)[default_state]))
+    step_divider = float(kwargs.get('step_divider', (0, 100)[default_state]))
+
+    if qmodel.L >= 500:
+        shift = 20
 
 
     # ARTEMIS

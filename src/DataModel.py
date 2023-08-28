@@ -32,9 +32,9 @@ class DataModel(Model):
     def get_seq(self) -> 'str':
 
         seq = ''.join(
-            [b if len(b) == 1 else 'm' 
+            [b if len(b) == 1 else 'M' 
              for b in self.i.get_level_values(2)]
-        ).lower()
+        )
 
         return seq
 

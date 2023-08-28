@@ -48,7 +48,7 @@ ARTEMIS was tested with two different Python3 environments:
 
 ## Usage examples
 
-    1) python3 artem.py r=examples/1ivs.cif  q=examples/1wz2.cif rres=/C qres=/C > output.txt
+    1) python3 artemis.py r=examples/1ivs.cif  q=examples/1wz2.cif rres=/C qres=/C > output.txt
 
     This command will write into "output.txt" file a sorted list of all local 
     structural superpositions between the C chains of 1IVS and 1WZ2 PDB entries 
@@ -89,7 +89,7 @@ ARTEMIS was tested with two different Python3 environments:
     base pairs. Simultaneously, two of the three A-minor-forming 
     adenosines have a counterpart residue.
 
-# Options 
+## Options
 
     r=FILENAME [REQUIRED OPTION]
         Path to a reference structure in PDB/mmCIF format. For faster 
@@ -101,13 +101,13 @@ ARTEMIS was tested with two different Python3 environments:
         the reference, in PDB/mmCIF format.
 
     matchrange=FLOAT [DEFAULT: matchrange=3.0]
-    	The threshold used for searching the mutually closest residues. Only 
-    	those pairs of residues that have their centers of mass at a distance 
-    	under the specified matchrange value can be added to the subset 
-    	of the mutually closest residues. The higher matchrange value 
-    	will produce more "noisy" matchings but won't miss anything. The lower 
-    	matchrange value will produce more "clean" matchings but 
-    	can miss something.
+        The threshold used for searching the mutually closest residues. Only 
+        those pairs of residues that have their centers of mass at a distance 
+        under the specified matchrange value can be added to the subset 
+        of the mutually closest residues. The higher matchrange value 
+        will produce more "noisy" matchings but won't miss anything. The lower 
+        matchrange value will produce more "clean" matchings but 
+        can miss something.
 
     rformat=KEYWORD, qformat=KEYWORD [DEFAULT: rformat=PDB,qformat=PDB] 
         The specification of the input coordinate file formats 
@@ -121,19 +121,19 @@ ARTEMIS was tested with two different Python3 environments:
         as the specified format.
 
     rmsdmin=FLOAT, rmsdmax=FLOAT [DEFAULT: rmsdmin=0,rmsdmax=1e10]
-    	The specification of minimum and maximum RMSD thresholds. 
-    	ARTEM will print and save only the superpositions that satisfy 
-    	the specified thresholds. 
-    	
+        The specification of minimum and maximum RMSD thresholds. 
+        ARTEM will print and save only the superpositions that satisfy 
+        the specified thresholds. 
+
     rmsdsizemin=FLOAT, rmsdsizemax=FLOAT [DEFAULT: rmsdsizemin=0,rmsdsizemax=1e10]
         The specification of minimum and maximum RMSD/SIZE ratio thresholds. 
         ARTEM will print and save only the superpositions that satisfy 
         the specified thresholds. 
 
     resrmsdmin=FLOAT, resrmsdmax=FLOAT [DEFAULT: resrmsdmin=0, resrmsdmax=1e10]
-    	The specification of minimum and maximum per-residue RMSD threshold.
-    	ARTEM will print and save only the superpositions that satisfy 
-    	the specified thresholds.
+        The specification of minimum and maximum per-residue RMSD threshold.
+        ARTEM will print and save only the superpositions that satisfy 
+        the specified thresholds.
 
     rres=STRING, qres=STRING [DEFAULT: rres="#1",qres="#1"]
         The specification of the input reference (rres) and query (qres) 
@@ -142,12 +142,12 @@ ARTEMIS was tested with two different Python3 environments:
         See the format description at the end of the OPTIONS section.
 
     rresneg=STRING, qresneg=STRING [DEFAULT: None]
-    	The specification of the input reference (rresneg) and query (qresneg) 
-    	structures. The specified residues will be ignored and all the other 
-    	residues considered as part of the structure. If both "rres" 
-    	and "rresneg" (or "qres" and "qresneg") are specified simultaneusly, 
-    	ARTEM will ignore "rres" ("qres") and consider only "rresneg" 
-    	("qresneg").
+        The specification of the input reference (rresneg) and query (qresneg) 
+        structures. The specified residues will be ignored and all the other 
+        residues considered as part of the structure. If both "rres" 
+        and "rresneg" (or "qres" and "qresneg") are specified simultaneusly, 
+        ARTEM will ignore "rres" ("qres") and consider only "rresneg" 
+        ("qresneg").
         See the format description at the end of the OPTIONS section.
 
     rseed=STRING, qseed=STRING [DEFAULT: rseed=rres,qseed=qres]
@@ -163,8 +163,8 @@ ARTEMIS was tested with two different Python3 environments:
         will save the output coordinate files in the specified format.
 
     saveres=STRING [DEFAULT: saveres=qres]
-    	The specification of the query structure residues that will be saved 
-    	in the output coordinate files.
+        The specification of the query structure residues that will be saved 
+        in the output coordinate files.
         See the format description at the end of the OPTIONS section.
 
     saveto=FOLDER [DEFAULT: None]
@@ -184,11 +184,11 @@ ARTEMIS was tested with two different Python3 environments:
         via editing the lib/nar.py text file.
 
     trim=BOOL [DEFAULT: trim=None]
-    	When specified, for each subset of mutually closest residues ARTEM will 
-    	iteratively remove residues with the worst per-residue RMSD from the 
-    	subset one by one with the following re-superpositioning based on the 
-    	remaining residues of the subset until the specified thresholds for rmsdmax,
-    	rmsdsizemax, resrmsdmax are reached or the subset size is less than sizemin.
+        When specified, for each subset of mutually closest residues ARTEM will 
+        iteratively remove residues with the worst per-residue RMSD from the 
+        subset one by one with the following re-superpositioning based on the 
+        remaining residues of the subset until the specified thresholds for rmsdmax,
+        rmsdsizemax, resrmsdmax are reached or the subset size is less than sizemin.
 
     threads=INT [DEFAULT: threads=1]
         Number of CPUs to use. ARTEM multiprocessing is available only for 
@@ -215,21 +215,21 @@ ARTEMIS was tested with two different Python3 environments:
             :_INT_INT   == Range of residue numbers
             
     Structure specification examples:
-        
-        rres="#1/B:_-10_20 #1/A"    - Consider the entire chain A from model 1 
-                                      and the range of chain B residues with 
-                                      numbers from -10 to 20 from model 1 as 
-                                      the reference structure.
-	qres="#"                    - Consider all the residues from all 
-	                              the models in the "q" file as 
-	                              the query structure.
-	saveres="/C:_10_20 /C:_20A" - Save the chain C residues with numbers 
-	                              from 10 to 20 and the chain C residue 
-	                              with number 20A (A is the insertion code).
-	rseed=:A                    - Use only the model 1 adenosines as the 
-	                              single-residue seeds from the reference 
-	                              structure. 
 
-# Contacts
+    rres="#1/B:_-10_20 #1/A"    - Consider the entire chain A from model 1 
+                                  and the range of chain B residues with 
+                                  numbers from -10 to 20 from model 1 as 
+                                  the reference structure.
+    qres="#"                    - Consider all the residues from all 
+                                  the models in the "q" file as 
+                                  the query structure.
+    saveres="/C:_10_20 /C:_20A" - Save the chain C residues with numbers 
+                                  from 10 to 20 and the chain C residue 
+                                  with number 20A (A is the insertion code).
+    rseed=:A                    - Use only the model 1 adenosines as the 
+                                  single-residue seeds from the reference 
+                                  structure. 
 
-David Bogdan, *e-mail: bogdan.d@phystech.edu* 
+## Contacts
+
+David Bogdan, *e-mail: <bogdan.d@phystech.edu>*

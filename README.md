@@ -18,7 +18,7 @@ The ARTEMIS algorithm works as follows:
   - calculate the score matrix:
     - multiply the matrix of distances between C3' atoms of superimposed structures by -1;
     - shift the matrix to the left by the minimum value in it;
-    - shift the matrix to the left by the minimum value in the cells of residue pairs from the permutation alignment (the matrix stays non-negative in the cells of such pairs);
+    - shift the matrix to the left by the minimum value in the cells of residue pairs from the permutation alignment (the matrix stays non-negative);
     - 
 
 ## Installation

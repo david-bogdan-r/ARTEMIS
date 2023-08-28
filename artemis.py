@@ -517,7 +517,7 @@ if __name__ == '__main__':
     )
 
 
-    default_state = qmodel.seed.notna().sum() >= 500
+    default_state = int(qmodel.seed.notna().sum() >= 500)
 
     nlargest     = int(kwargs.get('nlargest', (qmodel.L, 2*threads)[default_state]))
     shift        = float(kwargs.get('shift', (3, 20)[default_state]))

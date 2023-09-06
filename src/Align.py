@@ -101,7 +101,20 @@ def Align(
     scoremat -= min(scoremat[ri, qi]) - shift
 
     rAli, qAli = globalAlign(rseq, qseq, scoremat)
-    ri, qi = hitFromAli(rAli, qAli)
+    h = hitFromAli(rAli, qAli)
+
+    if h.size < 6:
+        a = np.array(
+            [
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+            ]
+        )
+        b = np.array([0, 0, 0])
+        return ans1, ((a, b), (-1, -1), -1, (rAli, qAli))
+
+    ri, qi = h
     s2 = impose(rm[ri], qm[qi])
     ans2 = (*s2, (rAli, qAli))
 

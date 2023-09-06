@@ -287,6 +287,7 @@ class Model:
 
         atom_site = self.get_cif_atom_site()
         atom_site = add_atom_id_quote(atom_site)
+        atom_site[CRDN] = atom_site[CRDN].round(3)
 
         text = 'data_{}\n'.format(str(self).upper())
         text += '# \n'

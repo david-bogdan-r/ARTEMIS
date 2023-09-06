@@ -4,23 +4,31 @@ Using [ARTEM](https://github.com/david-bogdan-r/ARTEM) to Infer Sequence alignme
 
 ## Reference
 
+TODO
+
 ## How ARTEMIS works
 
-ARTEMIS reads a reference and a query structure from the specified coordinate files in PDB or in mmCIF format and finds two alignments of structure sequences. The first alignment does not allow rearrangement and is fed to the standard output. The second alignment allows permutations and only its characteristics are fed to the standard output. The user can choose to save the query structure superpositions in PDB or mmCIF format and the tables of residue correspondences to a specified folder. By default, ARTEMIS reads the entire first models of the input files.
+ARTEMIS reads a reference and a query structure from the specified coordinate files in PDB or in mmCIF format and finds two alignments of structure sequences.
+The first alignment does not allow rearrangement and is fed to the standard output.
+If verbose mode is enabled, the characteristics of the second alignment, which allows permutations, are additionally fed to the standard output.
+Verbose mode is enabled automatically if the TM-score of the permutation alignment (normalised by the length of the query structure) is 10% higher than the TM-score of the alignment without permutations.
+The user can choose to save the superpositions of the query structures in PDB or mmCIF format and the residue matching tables in the specified folder.
+If verbose mode is disabled, only the superposition and the residue matching table for alignment without permutations are saved.
+By default, ARTEMIS reads the entire first models of the input files.
 
-The ARTEMIS algorithm works as follows:
+### Algorithm
 
-- perform superpositions of the query structure on the reference structure by each possible pair of residues between them (the superposition operator is calculated using Kabsch's algorithm between 3-atom coordinate representations of residues);
+- perform superpositions of the query structure on the reference structure by each possible pair of residues between the sets *rseed* and *qseed* (the superposition operator is calculated using Kabsch's algorithm between 3-atom coordinate representations of residues);
 - in each superposition find a set of residue pairs between structures with a distance not greater than *matchrange* angstroms between C3' atoms;
 - among the *nlagest* largest sets of residue pairs, build alignments with and without permutations:
-  - by the subset of mutually closest pairs superimpose the query structure on the reference structure (3-atom coordinate representations of residues);
+  - by the subset of mutually closest pairs superimpose the query structure on the reference structure (using 3-atom coordinate representations of residues);
   - closest pairs of residues between resuperimposed structures with the distance between C3' atoms not greater than 8 angstroms are considered to be **alignments with permutations**;
-  - calculate the score matrix:
+  - calculate the Score Matrix
     - multiply the matrix of distances between C3' atoms of superimposed structures by -1;
-    - shift the matrix to the left by the minimum value in it;
-    - shift the matrix to the left by the minimum value in the cells of residue pairs from the permutation alignment (the matrix stays non-negative);
-    - shift the matrix to the left by the *shift* value to promote alignment of residue pairs at a distance less than *shift*
-  - finding an **alignment** by Needleman-Wunsch Algorithm
+    - shift the matrix to the left by the minimum value in it (values in the matrix are not negative);
+    - shift the matrix to the left by the minimum value in the cells of residue pairs from the permutation alignment (all matrix cells corresponding to pairs of residues of permutation alignment have non-negative values);
+    - shift the matrix to the right by *shift* to increase the coverage in the alignment.
+  - finding an **alignment** by Needleman-Wunsch Algorithm (score maximisation)
 - select the better alignments by TM-score sum for the two structures.
 
 ## Installation
@@ -37,23 +45,25 @@ ARTEMIS requires three Python3 libraries to be installed:
 - pandas
 - scipy
 
+To install, type:
+
+    pip install -r requirements.txt
+
 ARTEMIS was tested with two different Python3 environments:
 
-### Ubuntu 20.04
+#### Ubuntu 20.04
 
 - python==3.8
 - numpy==1.22.3
 - pandas==1.4.1
 - scipy==1.8.0
 
-### MacOS Sonoma 14.0
+#### MacOS Sonoma 14.0
 
 - python==3.11.0
 - numpy==1.23.4
 - pandas==1.5.1
 - scipy==1.9.3
-
-## Time & memory usage
 
 ## Usage
 
@@ -61,61 +71,26 @@ ARTEMIS was tested with two different Python3 environments:
 
 ## Usage examples
 
-    1) python3 artemis.py r=examples/6ugg/6ugg.cif  q=examples/1ivs.pdb rres=/B qres=/C > output.txt
+    1) python3 artemis.py -v r=examples/6ugg/6ugg.cif  q=examples/1ivs.pdb rres=/B qres=/C saveto=result saveformat=pdb
 
-    This command will write into "output.txt" file a sorted list of all local 
-    structural superpositions between the C chains of 1IVS and 1WZ2 PDB entries 
-    that are two tRNAs. The user can spot the three largest mathings of size 52. 
-    Then the user can save the largest mathings only into "result" folder in 
-    PDB format:
-    
-    python3 artem.py r=examples/1ivs.cif  q=examples/1wz2.cif rres=/C qres=/C sizemin=52 saveto=result saveformat=pdb
-    
-    As the result three files of three different matchings of 52 residues will 
-    be saved in PDB format - 1wz2_1.pdb, 1wz2_2.pdb, 1wz2_3.pdb. The latter is
-    the superposition with the best RMSD. Each of the saved files lists three 
-    structural models. The first model contains all "qres" residues 
-    superimposed with the reference structure. The second model contains 
-    the subset of the reference structure residues that were used 
-    for the superposition, and the third model stores their counterpart 
-    residues from the query structure. Then, the user can open the reference 
-    file 1ivs.cif together with the first model of the file 1wz2_3.pdb in a 3D
-    visualization tool for visual examination of the best local superposition 
-    of the two structures. The user can observe a good superposition 
-    of the four standard tRNA helical regions.
-    
-    2) python3 artem.py r=examples/motif10.pdb  q=examples/motif9.pdb rmsdsizemax=0.25
-    
-    This command will output a sorted list of those local structural 
-    superpositions between the two topologically different motifs of 
-    10 and 9 residues respectively that have a ration RMSD/SIZE under 0.25.
-    The user can spot the only mathing of size 8 with RMSD of 1.713 angstroms.
-    Then the user can save the superposition into "result" folder 
-    in CIF format:
-    
-    python3 artem.py r=examples/motif10.pdb  q=examples/motif9.pdb rmsdsizemax=0.25 sizemin=8 saveto=result saveformat=cif 
-    
-    The only file will be saved named "motif9_1.cif". Then, the user 
-    can open the reference file motif10.pdb together with the file 
-    motif9_1.cif in a 3D visualization tool for visual examination. 
-    The user can observe a good superposition of all the three stacked 
-    base pairs. Simultaneously, two of the three A-minor-forming 
-    adenosines have a counterpart residue.
+    This command will superimpose chain C from 1ivs to chain B from 6ugg 
+    and will save the superimposed structure into "result" sub-folder
+    in PDB format.
 
 ## Options
 
     r=FILENAME [REQUIRED OPTION]
         Path to a reference structure in PDB/mmCIF format. For faster 
-        performance, it's advised to specify the largest of the two structures 
-        as the reference structure.
+        performance, it's advised to specify the largest of the two 
+        structures as the reference structure.
 
     q=FILENAME [REQUIRED OPTION]
-        Path to a query structure, the one that ARTEM superimposes to 
+        Path to a query structure, the one that ARTEMIS superimposes to 
         the reference, in PDB/mmCIF format.
 
     matchrange=FLOAT [DEFAULT: matchrange=3.0]
-        The threshold used for searching the mutually closest residues. Only 
-        those pairs of residues that have their centers of mass at a distance 
+        The threshold used for searching the mutually closest residues. 
+        Only those pairs of residues that have their C3' atoms at a distance 
         under the specified matchrange value can be added to the subset 
         of the mutually closest residues. The higher matchrange value 
         will produce more "noisy" matchings but won't miss anything. The lower 
@@ -124,13 +99,13 @@ ARTEMIS was tested with two different Python3 environments:
 
     rformat=KEYWORD, qformat=KEYWORD [DEFAULT: rformat=PDB,qformat=PDB] 
         The specification of the input coordinate file formats 
-        (case-insensitive). By default, ARTEM tries to infer the format 
+        (case-insensitive). By default, ARTEMIS tries to infer the format 
         from the extensions of the input filenames. ".pdb", ".cif", 
         and ".mmcif" formats can be recognized (case-insensitive). In the case 
-        of any other extension ARTEM will treat the file as the PDB-format 
+        of any other extension ARTEMIS will treat the file as the PDB-format 
         file by default. If the "rformat" ("qformat") parameter is specified 
         and it's either "PDB", "CIF", or "MMCIF" (case-insensitive), 
-        ARTEM will treat the reference (query) coordinate file
+        ARTEMIS will treat the reference (query) coordinate file
         as the specified format.
 
     rres=STRING, qres=STRING [DEFAULT: rres="#1",qres="#1"]
@@ -144,18 +119,18 @@ ARTEMIS was tested with two different Python3 environments:
         structures. The specified residues will be ignored and all the other 
         residues considered as part of the structure. If both "rres" 
         and "rresneg" (or "qres" and "qresneg") are specified simultaneusly, 
-        ARTEM will ignore "rres" ("qres") and consider only "rresneg" 
-        ("qresneg").
-        See the format description at the end of the OPTIONS section.
+        ARTEMIS will ignore "rres" ("qres") and consider only "rresneg" 
+        ("qresneg"). 
+        See the format description at the end ofthe OPTIONS section.
 
     rseed=STRING, qseed=STRING [DEFAULT: rseed=rres,qseed=qres]
-        The specification of the reference and query residues that ARTEM can use
-        for single-residue matching seeds.
+        The specification of the reference and query residues that ARTEMIS
+        can use for single-residue matching seeds.
         See the format description at the end of the OPTIONS section.
 
     saveformat=KEYWORD [DEFAULT: saveformat=qformat]
         The specification of the format of the output coordinate files. 
-        By default, ARTEM will save the coordinate files in the same format 
+        By default, ARTEMIS will save the coordinate files in the same format 
         as the query input file. If the "saveformat" parameter is specified 
         and it's either "PDB", "CIF", or "MMCIF" (case-insensitive), ARTEM 
         will save the output coordinate files in the specified format.
@@ -169,31 +144,39 @@ ARTEMIS was tested with two different Python3 environments:
         Path to the output folder to save the coordinate files 
         of the superimposed query structures along with the mutually 
         closest residue subsets. If the specified folder does not exist, 
-        ARTEM will create it. If the folder is not specified, 
+        ARTEMIS will create it. If the folder is not specified, 
         nothing will be saved.
 
-    sizemin=FLOAT, sizemax=FLOAT [DEFAULT: sizemin=1,sizemax=1e10]
-        The specification of minimum and maximum SIZE thresholds. 
-        ARTEM will print and save only the superpositions that satisfy 
-        the specified thresholds. If sizemin is set to zero, ARTEM will 
-        output the dummy 0-size superpositions matching the reference 
-        and query residues lacking the 5-atom representation specified. 
-        The user can specify custom atom representations of any residues 
-        via editing the lib/nar.py text file.
+    threads=INT [DEFAULT: threads=CPU_COUNT]
+        Number of CPUs to use.
 
-    trim=BOOL [DEFAULT: trim=None]
-        When specified, for each subset of mutually closest residues ARTEM will 
-        iteratively remove residues with the worst per-residue RMSD from the 
-        subset one by one with the following re-superpositioning based on the 
-        remaining residues of the subset until the specified thresholds for rmsdmax,
-        rmsdsizemax, resrmsdmax are reached or the subset size is less than sizemin.
+    step_divider=INT [DEFAULT: step_divider=0 if len(qseed) < 500 else 100]
+        To speed up the procedure of pairwise superpositions of structures 
+        to find sets of mutually closest residues, ARTEMIS can skip rseed 
+        residuals in steps of
+        1 + number of qseed residues // step_divider
+        If step_divider is 0, ARTEMIS does not skip rseed residuals.
+        If the number of qseed residues exceeds 500 and step_divider
+        is not specified, then step_divider automatically becomes 100.
 
-    threads=INT [DEFAULT: threads=1]
-        Number of CPUs to use. ARTEM multiprocessing is available only for 
-        UNIX-like systems.
+    nlargest=INT [DEFAULT: nlargest=len(qres) if len(qseed) < 500 else 2*threads]
+        Number of largest mutually nearest sets of residues for which 
+        alignments are constructed.
+
+    shift=FLOAT [DEFAULT: shift=3 if len(qseed) < 500 else 20]
+        The value by which the Score Matrix is shifted for Needleman-Wunsch.
+        Larger shift, greater coverage.
+
+    -v, --verbose [DEFAULT: OFF]
+        If specified, it will add the permutation alignment characteristics
+        to the standard output, and save its imposition of the query structure
+        with the residue matching table to the saveto folder. 
+        The mode is automatically activated if the TM-score of the query 
+        structure for alignment with permutation is 10% larger than
+        the TM-score of alignment without permutation.
 
     ***************************************************************************
-    ARTEM uses a ChimeraX-like format to specify the residues of interest 
+    ARTEMIS uses a ChimeraX-like format to specify the residues of interest 
     using the "res" parameters:
 
     [#[INT]][/[STRING]][:[STRING][_INT[CHAR|_INT]] - The structure specification
@@ -230,4 +213,4 @@ ARTEMIS was tested with two different Python3 environments:
 
 ## Contacts
 
-David Bogdan, *e-mail: <bogdan.d@phystech.edu>*
+David Bogdan, *e-mail: <dbohdan@iimcb.gov.pl>*

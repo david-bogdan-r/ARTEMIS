@@ -5,7 +5,7 @@ import sys
 from datetime import datetime as dt
 from functools import partial
 from heapq import nlargest as nlargestf
-from typing import Iterable
+from typing import Iterable, Iterator
 import numpy as np
 
 from src.DataModel import DataModel, dataModel, MCBI
@@ -13,12 +13,12 @@ from src.Hit import getHit, mutuallyClosest, hitFromAli
 from src.ResRepr import ResRepr
 from src.Align import Impose, Align
 
-output = '''
+OUTPUT = '''
  ********************************************************************
  * ARTEMIS (Version 20230828)                                       *
  * using ARTEM to Infer Sequence alignment                          *
  * Reference: TODO                                                  *
- * Please email comments and suggestions to dav.bog.rom@gmail.com   *
+ * Please email comments and suggestions to dbohdan@iimcb.gov.pl    *
  ********************************************************************
 
 Name of structure r: {r}
@@ -29,21 +29,22 @@ Length of structure q: {Lq} residues
 Aligned length= {Lali}, RMSD= {RMSD:6.2f}, Seq_ID=n_identical/n_aligned= {seqID:4.3f}
 TM-score= {TMr:6.5f} (normalized by length of structure r: L={Lr}, d0={d0r:.2f})
 TM-score= {TMq:6.5f} (normalized by length of structure q: L={Lq}, d0={d0q:.2f})
-(You should use TM-score normalized by length of the reference structure)
 
 (":" denotes residue pairs of d < 5.0 Angstrom, "." denotes other aligned residues)
 {rAli}
 {dist}
 {qAli}
 
+#Total CPU time is {time_total:5.2f} seconds{PERMUTATION}'''
+
+PERMUTATION = '''
+_____________________________________________________________________
 Alignment with permutations:
 Aligned length= {pLali}
 TM-score= {pTMr:6.5f} (normalized by length of structure r)
 TM-score= {pTMq:6.5f} (normalized by length of structure q)
 RMSD= {pRMSD:6.2f}
 Seq_ID=n_identical/n_aligned= {pseqID:4.3f}
-
-#Total CPU time is {time_total:5.2f} seconds
 '''
 
 BASEDIR  = os.path.dirname(__file__)
@@ -53,7 +54,7 @@ FORMAT   = {
     'CIF'  : '.cif',
     'MMCIF': '.cif'
 }
-
+SEEDPOOL = 100_000
 
 r:'str|None' = None
 q:'str|None' = None
@@ -72,7 +73,7 @@ qseed:'str' = qres
 
 saveto:'str|None' = None
 saveformat:'str'  = qformat
-saveres:'str'     = '#'
+saveres:'str'     = qres
 
 threads:'int' = mp.cpu_count()
 
@@ -80,9 +81,12 @@ matchrange:'float' = 3.5
 
 resrepr:'str' = 'artemis'
 
+verbose:'bool' = False
+
 step_divider:'float'
 nlargest:'int'
 shift:'float'
+
 
 class ARTEMIS:
 
@@ -108,13 +112,34 @@ class ARTEMIS:
 
     def run(self):
 
-        seed = self.get_seed(step_divider=step_divider)
+        seed, count = self.get_seed(step_divider=step_divider)
 
-        h = map(
-            mutuallyClosest, 
-            nlargestf(nlargest, self.get_hit(seed), key=len)
+        i = 0
+        h = []
+
+        while i + SEEDPOOL < count:
+            step = [next(seed) for _ in range(SEEDPOOL)]
+            h = nlargestf(
+                nlargest, 
+                h + self.get_hit(step), 
+                key=len
+            )
+            i += SEEDPOOL
+
+        h = nlargestf(
+            nlargest, 
+            h + self.get_hit(seed), 
+            key=len
         )
+
+        h = map(mutuallyClosest, h)
         h = [hh for hh in h if hh.size >= 6]
+
+        if not h:
+            raise Exception(
+            'No correspondence between sets of residues was found. '\
+            'Try other argument values.'
+            )
 
         if threads > 1:
             ali = pool.starmap(self.align, h)
@@ -123,15 +148,15 @@ class ARTEMIS:
             align = self.align
             ali   = [align(hh[0], hh[1]) for hh in h]
 
+        ali = [a for a in ali if a]
+        if not ali:
+            raise Exception('Alignments not found')
+
         ans1 = max(ali, key=lambda x: sum(x[0][1])) # type: ignore
         ans2 = max(ali, key=lambda x: sum(x[1][1])) # type: ignore
 
-        toc = dt.now()
-        time_total = round((toc - tic).total_seconds(), 4)
-
         self.ans1 = ans1[0]
         self.ans2 = ans2[1] # type: ignore
-        self.time_total = time_total
 
     def get_hit(self, seed:'Iterable'):
 
@@ -145,29 +170,29 @@ class ARTEMIS:
 
         return hits
 
-    def get_seed(self, step_divider:'int|float'=0):
+    def get_seed(self, step_divider:'int|float'=0) -> 'tuple[Iterator,int]':
 
         r = self.r
         q = self.q
 
+        qseed = q.seed.dropna()
+
         if step_divider:
-            step = 1 + int(q.L // step_divider)
-            seed = itertools.product(
-                r.seed[::step].dropna(), 
-                q.seed.dropna()
-            )
+            step  = 1 + int(q.L // step_divider)
+            rseed = r.seed[::step].dropna()
 
         else:
+            rseed = r.seed.dropna()
 
-            seed = itertools.product(
-                r.seed.dropna(), 
-                q.seed.dropna()
-            )
+        seed  = itertools.product(rseed, qseed)
+        count = len(rseed) * len(qseed)
 
-        return seed
+        return seed, count
 
 
-    def show(self):
+    def ans(self):
+
+        global verbose
 
         rmodel = self.r
         qmodel = self.q
@@ -178,52 +203,56 @@ class ARTEMIS:
         rAli, qAli = ans2[-1]
         Lali = sum(i != '-' and j != '-' for i, j in zip(rAli, qAli))
 
-        h = hitFromAli(rAli, qAli)
+        if Lali:
+            h = hitFromAli(rAli, qAli)
 
-        rm = rmodel.m[h[0]]
-        a, b = ans2[0]
-        qm = np.dot(qmodel.m[h[1]], a) + b
+            rm = rmodel.m[h[0]]
+            a, b = ans2[0]
 
-        d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
+            qm = np.dot(qmodel.m[h[1]], a) + b
 
-        dist = []
-        i = -1
-        j = -1
-        m = -1
-        for k in range(len(rAli)):
-            b1 = rAli[k] != '-'
-            b2 = qAli[k] != '-'
+            d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
 
-            if b1:
-                i += 1
-            if b2:
-                j += 1
+            dist = []
+            i = -1
+            j = -1
+            m = -1
+            for k in range(len(rAli)):
+                b1 = rAli[k] != '-'
+                b2 = qAli[k] != '-'
 
-            if b1 and b2:
-                m += 1
-                if d[m] < 5:
-                    dist.append(':')
+                if b1:
+                    i += 1
+                if b2:
+                    j += 1
+
+                if b1 and b2:
+                    m += 1
+                    if d[m] < 5:
+                        dist.append(':')
+                    else:
+                        dist.append('.')
                 else:
-                    dist.append('.')
-            else:
-                dist.append(' ')
-        dist = ''.join(dist)
+                    dist.append(' ')
+            dist = ''.join(dist)
 
-        n_identical = sum(c1 == c2 for c1, c2 in zip(rAli, qAli))
-        n_aligned   = Lali
+            n_identical = sum(c1 == c2 for c1, c2 in zip(rAli, qAli))
+            n_aligned   = Lali
 
-        seqID = n_identical / n_aligned
+            seqID = n_identical / n_aligned
+
+        else:
+            dist = ''
+            seqID = 0
 
         rpath = r
         qpath = q
 
-        rchain = rmodel.i.get_level_values(1).unique()
-        if len(rchain) == 1:
-            rpath += ':' + rchain[0]
+        rchain = rmodel.res.index.get_level_values(1).unique()
+        rpath += ':' + '|'.join(map(str, rchain)) # type: ignore
 
-        qchain = qmodel.i.get_level_values(1).unique()
-        if len(qchain) == 1:
-            qpath += ':' + qchain[0]
+        qchain = qmodel.res.index.get_level_values(1).unique()
+        qpath += ':' + '|'.join(map(str, qchain)) # type: ignore
 
         h = ans1[-1]
         p_n_aligned = len(h[0])
@@ -238,7 +267,13 @@ class ARTEMIS:
 
         pseqID = p_n_identical / p_n_aligned
 
-        toc = dt.now()
+        TMr  = ans2[1][0]
+        TMq  = ans2[1][1]
+        RMSD = ans2[2]
+
+        pTMr  = ans1[1][0]
+        pTMq  = ans1[1][1]
+        pRMSD = ans1[2]
 
         ans  = {
             'r'     : rpath,
@@ -246,27 +281,36 @@ class ARTEMIS:
             'Lr'    : rmodel.L,
             'Lq'    : qmodel.L,
             'Lali'  : Lali,
-            'TMr'   : ans2[1][0],
-            'TMq'   : ans2[1][1],
-            'RMSD'  : ans2[2],
+            'TMr'   : TMr,
+            'TMq'   : TMq,
+            'RMSD'  : RMSD,
             'rAli'  : rAli,
             'dist'  : dist,
             'qAli'  : qAli,
             'seqID' : seqID,
             'pLali' : p_n_aligned,
-            'pTMr'  : ans1[1][0],
-            'pTMq'  : ans1[1][1],
-            'pRMSD' : ans1[2],
+            'pTMr'  : pTMr,
+            'pTMq'  : pTMq,
+            'pRMSD' : pRMSD,
             'pseqID': pseqID,
             'd0r'   : rmodel.d0,
             'd0q'   : qmodel.d0,
-            'time_total': (toc - tic).total_seconds(),
         }
 
-        print(output.format(**ans),end='')
+        if not verbose and (pTMq - TMq) / abs(TMq) >= 0.1:
+            verbose = True
+
+        if verbose:
+            ans['PERMUTATION'] = PERMUTATION.format(**ans)
+        else:
+            ans['PERMUTATION'] = ''
+
+        return ans
 
 
-    def save(self) -> 'None':
+    def save(self, saveto:'str') -> 'None':
+
+        saveto = saveto.strip(os.sep)
 
         r = self.r
         q = self.q
@@ -279,91 +323,91 @@ class ARTEMIS:
         else:
             files = set()
 
-        a, b = ans2[0]
-        qq = q.copy()
-        qq.coord = np.dot(qq.coord, a) + b
-        qq.atom_site = (qq.atom_site
-                        .set_index(MCBI).loc[q.saveres]
-                        .reset_index()[q.atom_site.columns])
-
-        fname = '{}_to_{}{}'.format(q.name, r.name, saveformat)
-        i = 0
-        while fname in files:
-            fname = '{}_to_{}_({}){}'.format(q.name, r.name, i, saveformat)
-            i += 1
-
-        if saveformat == '.pdb':
-            qq.to_pdb('{}/{}'.format(saveto, fname))
-        else:
-            qq.to_cif('{}/{}'.format(saveto, fname))
-
         h  = hitFromAli(*ans2[-1])
+        if h.size:
+            a, b = ans2[0]
+            qq = q.copy()
+            qq.coord = np.dot(qq.coord, a) + b
+            qq.atom_site = (qq.atom_site
+                            .set_index(MCBI).loc[q.saveres]
+                            .reset_index()[q.atom_site.columns])
 
-        rm = self.r.m[h[0]]
-        qm = np.dot(q.m[h[1]], a) + b
-        d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
+            fname = '{}_to_{}{}'.format(q.name, r.name, saveformat)
+            i = 0
+            while fname in files:
+                fname = '{}_to_{}_({}){}'.format(q.name, r.name, i, saveformat)
+                i += 1
 
-        ri = self.r.i[h[0]].to_list()
-        qi = self.q.i[h[1]].to_list()
+            if saveformat == '.pdb':
+                qq.to_pdb('{}/{}'.format(saveto, fname))
+            else:
+                qq.to_cif('{}/{}'.format(saveto, fname))
 
-        fname = '{}_to_{}.tsv'.format(q.name, r.name)
-        i = 0
-        while fname in files:
-            fname = '{}_to_{}_({}).tsv'.format(q.name, r.name, i)
-            i += 1
+            rm = self.r.m[h[0]]
+            qm = np.dot(q.m[h[1]], a) + b
+            d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
 
-        text = '{}\tdist\t{}\n'.format(self.r, self.q)
-        for i, (ii, jj) in enumerate(zip(ri, qi)):
-            text += "{}\t{:.2}\t{}\n".format('.'.join(list(map(str, ii))),
-                                             d[i],
-                                             '.'.join(list(map(str, jj))))
+            ri = self.r.i[h[0]].to_list()
+            qi = self.q.i[h[1]].to_list()
 
-        with open('{}/{}'.format(saveto, fname), 'w') as file:
-            file.write(text)
+            fname = '{}_to_{}.tsv'.format(q.name, r.name)
+            i = 0
+            while fname in files:
+                fname = '{}_to_{}_({}).tsv'.format(q.name, r.name, i)
+                i += 1
+
+            text = '{}\tdist\t{}\n'.format(self.r, self.q)
+            for i, (ii, jj) in enumerate(zip(ri, qi)):
+                text += "{}\t{:.2}\t{}\n".format('.'.join(list(map(str, ii))),
+                                                d[i],
+                                                '.'.join(list(map(str, jj))))
+
+            with open('{}/{}'.format(saveto, fname), 'w') as file:
+                file.write(text)
+
+        if verbose:
+            a, b = ans1[0]
+            qq = q.copy()
+            qq.coord = np.dot(qq.coord, a) + b
+            qq.atom_site = (qq.atom_site
+                            .set_index(MCBI).loc[q.saveres]
+                            .reset_index()[q.atom_site.columns])
+
+            fname = '{}_to_{}_p{}'.format(q.name, r.name, saveformat)
+            i = 0
+            while fname in files:
+                fname = '{}_to_{}_p_({}){}'.format(q.name, r.name, i, saveformat)
+                i += 1
+
+            if saveformat == '.pdb':
+                qq.to_pdb('{}/{}'.format(saveto, fname))
+            else:
+                qq.to_cif('{}/{}'.format(saveto, fname))
 
 
-        a, b = ans1[0]
-        qq = q.copy()
-        qq.coord = np.dot(qq.coord, a) + b
-        qq.atom_site = (qq.atom_site
-                        .set_index(MCBI).loc[q.saveres]
-                        .reset_index()[q.atom_site.columns])
+            h  = ans1[-1]
 
-        fname = '{}_to_{}_p{}'.format(q.name, r.name, saveformat)
-        i = 0
-        while fname in files:
-            fname = '{}_to_{}_p_({}){}'.format(q.name, r.name, i, saveformat)
-            i += 1
+            rm = self.r.m[h[0]]
+            qm = np.dot(q.m[h[1]], a) + b
+            d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
 
-        if saveformat == '.pdb':
-            qq.to_pdb('{}/{}'.format(saveto, fname))
-        else:
-            qq.to_cif('{}/{}'.format(saveto, fname))
+            ri = self.r.i[h[0]].to_list()
+            qi = self.q.i[h[1]].to_list()
 
+            fname = '{}_to_{}_p.tsv'.format(q.name, r.name)
+            i = 0
+            while fname in files:
+                fname = '{}_to_{}_p_({}).tsv'.format(q.name, r.name, i)
+                i += 1
 
-        h  = ans1[-1]
+            text = '{}\tdist\t{}\n'.format(self.r, self.q)
+            for i, (ii, jj) in enumerate(zip(ri, qi)):
+                text += "{}\t{:.2}\t{}\n".format('.'.join(list(map(str, ii))),
+                                                d[i],
+                                                '.'.join(list(map(str, jj))))
 
-        rm = self.r.m[h[0]]
-        qm = np.dot(q.m[h[1]], a) + b
-        d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
-
-        ri = self.r.i[h[0]].to_list()
-        qi = self.q.i[h[1]].to_list()
-
-        fname = '{}_to_{}_p.tsv'.format(q.name, r.name)
-        i = 0
-        while fname in files:
-            fname = '{}_to_{}_p_({}).tsv'.format(q.name, r.name, i)
-            i += 1
-
-        text = '{}\tdist\t{}\n'.format(self.r, self.q)
-        for i, (ii, jj) in enumerate(zip(ri, qi)):
-            text += "{}\t{:.2}\t{}\n".format('.'.join(list(map(str, ii))),
-                                             d[i],
-                                             '.'.join(list(map(str, jj))))
-
-        with open('{}/{}'.format(saveto, fname), 'w') as file:
-            file.write(text)
+            with open('{}/{}'.format(saveto, fname), 'w') as file:
+                file.write(text)
 
 
 
@@ -378,20 +422,27 @@ if __name__ == '__main__':
             print(file.read())
             exit()
 
-
     args   = sys.argv[1:]
     kwargs = {}
     i = 0
+
     while i != len(args):
+
         k = args[i]
+
         if k.startswith('-'):
             k = k.strip('-')
-            i += 1
-            v = args[i]
-            kwargs[k] = v
+            if k == 'v' or k == 'verbose':    # verbose
+                kwargs['v'] = True
+            else:
+                i += 1
+                v = args[i]
+                kwargs[k] = v
+
         else:
             k, v = k.split('=')
             kwargs[k] = v
+
         i += 1
 
     r = kwargs.get('r', r)
@@ -487,6 +538,8 @@ if __name__ == '__main__':
 
     matchrange = float(kwargs.get('matchrange', matchrange))
 
+    if 'v' in kwargs:
+        verbose = True
 
     # Set multiprocess start method
 
@@ -500,7 +553,6 @@ if __name__ == '__main__':
     # Creating a function for residue representation
 
     resRepr = ResRepr(resrepr)
-
 
     # Load models
 
@@ -519,12 +571,9 @@ if __name__ == '__main__':
 
     default_state = int(qmodel.seed.notna().sum() >= 500)
 
-    nlargest     = int(kwargs.get('nlargest', (qmodel.L, 2*threads)[default_state]))
     shift        = float(kwargs.get('shift', (3, 20)[default_state]))
+    nlargest     = int(kwargs.get('nlargest', (qmodel.L, 2*threads)[default_state]))
     step_divider = float(kwargs.get('step_divider', (0, 100)[default_state]))
-
-    if qmodel.L >= 500:
-        shift = 20
 
 
     # ARTEMIS
@@ -532,8 +581,11 @@ if __name__ == '__main__':
     artemis = ARTEMIS(rmodel, qmodel)
     artemis.run()
 
-    if saveto:
-        saveto = saveto.strip(os.sep)
-        artemis.save()
+    ans = artemis.ans()
 
-    artemis.show()
+    if saveto:
+        artemis.save(saveto)
+
+    toc = dt.now()
+    ans['time_total'] = (toc - tic).total_seconds()
+    print(OUTPUT.format(**ans), end='')

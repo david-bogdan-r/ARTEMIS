@@ -16,6 +16,7 @@ class DataModel(Model):
     c:'np.ndarray'      # Residue representation
     m:'np.ndarray'      # C3' coordinates
     t:'KDTree'          # KDTree of C3' coordinates
+    res:'pd.Series'
 
     seed:'pd.Series'
     saveres:'list'
@@ -69,6 +70,7 @@ class DataModel(Model):
             c=self.c.copy(), 
             m=self.m.copy(), 
             t=self.t,
+            res=self.res,
             seed=self.seed,
             saveres=self.saveres
         )
@@ -84,7 +86,7 @@ class DataModel(Model):
 def dataModel(
     name:'str', fmt:'str', path:'str|IOBase',
     resSpec:'str', seedSpec:'str', saveresSpec:'str', 
-    resneg:'bool',
+    resNeg:'bool',
     resRepr:'ResRepr',
 ) -> 'DataModel':
 
@@ -105,36 +107,46 @@ def dataModel(
         inplace=True
     )
 
-    res_atom_site = (atom_site[atom_site['auth_comp_id']
-                               .isin(resRepr.repr.keys())])
+    r     = resRepr.apply(atom_site)
+    rmcbi = r.reset_index()[MCBI].values
 
-    r      = resRepr.apply(res_atom_site)
-    rarray = r.reset_index()[MCBI].values
-    res    = r.loc[getResSpec(rarray, resSpec , resneg)]
+    res   = r.loc[getResSpec(rmcbi, resSpec , resNeg)]
+    notna = res.notna()
 
-    atom_site_c = res_atom_site.set_index(MCBI).loc[res.index]
+    if not notna.any():
+        raise Exception(
+            '{}. No residue was found in (res={}, resneg={})'.format(name, resSpec, resNeg)
+        )
+
+    atom_site_c = atom_site.set_index(MCBI).loc[res[notna].index]
     atom_site_c.set_index('auth_atom_id', inplace=True)
 
-    i = res.index
-    c = res.values
-    m = atom_site_c.loc["C3'", CRDN].values # type: ignore
+    i = res[notna].index
+    c = res[notna].values
+    m:'np.ndarray' = atom_site_c.loc["C3'", CRDN].values # type: ignore
+    if len(m) < 3:
+        raise Exception(
+            '{}. Not enough residue for alignment (res={}, resneg={})'.format(name, resSpec, resNeg)
+        )
     t = KDTree(m)
 
-    if seedSpec == resSpec and resneg:
-        seed = r.loc[
-            getResSpec(rarray, seedSpec, resneg)
-        ]
+    if seedSpec == resSpec and resNeg:
+        loc  = getResSpec(rmcbi, seedSpec, resNeg)
     else:
-        seed = r.loc[
-            getResSpec(rarray, seedSpec, False)
-        ]
+        loc = getResSpec(rmcbi, seedSpec, False)
 
-    saveres = getResSpec(rarray, saveresSpec, False) 
+    if not loc:
+        raise Exception(
+            '{}. Seed residues is empty (seed={})'.format(name, seedSpec)
+        )
+    seed = r.loc[loc]
+
+
+    saveres = getResSpec(rmcbi, saveresSpec, False) 
 
     dm = DataModel(
         name=name, fmt=fmt, atom_site=atom_site,
-        i=i, c=c, m=m, t=t, seed=seed, saveres=saveres # type: ignore
+        i=i, c=c, m=m, t=t, res=res, seed=seed, saveres=saveres # type: ignore
     )
 
     return dm
-

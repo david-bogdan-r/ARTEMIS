@@ -51,14 +51,14 @@ To install, type:
 
 ARTEMIS was tested with two different Python3 environments:
 
-#### Ubuntu 20.04
+### Ubuntu 20.04
 
 - python==3.8
 - numpy==1.22.3
 - pandas==1.4.1
 - scipy==1.8.0
 
-#### MacOS Sonoma 14.0
+### MacOS Sonoma 14.0
 
 - python==3.11.0
 - numpy==1.23.4

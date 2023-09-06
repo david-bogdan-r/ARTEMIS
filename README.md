@@ -71,7 +71,7 @@ ARTEMIS was tested with two different Python3 environments:
 
 ## Usage examples
 
-    1) python3 artemis.py -v r=examples/6ugg/6ugg.cif  q=examples/1ivs.pdb rres=/B qres=/C saveto=result saveformat=pdb
+    1) python3 artemis.py r=examples/6ugg/6ugg.cif  q=examples/1ivs.pdb rres=/B qres=/C saveto=result saveformat=pdb -v
 
     This command will superimpose chain C from 1ivs to chain B from 6ugg 
     and will save the superimposed structure into "result" sub-folder

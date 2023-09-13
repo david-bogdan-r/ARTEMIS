@@ -35,10 +35,10 @@ TM-score= {TMq:6.5f} (normalized by length of structure q: L={Lq}, d0={d0q:.2f})
 {dist}
 {qAli}
 
-#Total CPU time is {time_total:5.2f} seconds{PERMUTATION}'''
+#Total CPU time is {time_total:5.2f} seconds{PERMUTATION}
+'''
 
-PERMUTATION = '''
-_____________________________________________________________________
+PERMUTATION = '''_____________________________________________________________________
 Alignment with permutations:
 Aligned length= {pLali}
 TM-score= {pTMr:6.5f} (normalized by length of structure r)

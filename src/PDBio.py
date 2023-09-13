@@ -146,6 +146,13 @@ def as_cif(text:'str') -> 'pd.DataFrame':
     a = map(str.split, t[i:])
     atom_site = pd.DataFrame(a, columns=columns)
     atom_site = atom_site.apply(pd.to_numeric)
+
+    for col in atom_site.columns:
+        if col.startswith('label'):
+            new_col = col.replace('label', 'auth')
+            if new_col not in atom_site.columns:
+                atom_site[new_col] = atom_site[col]
+
     atom_site['auth_asym_id'] = atom_site['auth_asym_id'].astype(str)
 
     for col in ['label_atom_id', 'auth_atom_id']:

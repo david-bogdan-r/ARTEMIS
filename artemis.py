@@ -1,25 +1,24 @@
 import itertools
+import json
 import multiprocessing as mp
 import os
 import sys
+from copy import deepcopy
 from datetime import datetime as dt
 from functools import partial
 from heapq import nlargest as nlargestf
-from typing import Iterable, Iterator
+from typing import Callable, Iterable
+
 import numpy as np
 import pandas as pd
-import json
-from copy import deepcopy
-
-from scipy.spatial.distance import cdist
 from scipy.spatial import KDTree
-from src.PDBio import BaseModel, getResSpec
+from scipy.spatial.distance import cdist
+
 from src.argparse import argParse
-from src.resrepr import resrepr
 from src.Kabsch import transform
 from src.NW import globalAlign
-from typing import Callable
-
+from src.PDBio import BaseModel, getResSpec
+from src.resrepr import resrepr
 
 BASEDIR  = os.path.dirname(__file__)
 SEEDPOOL = 100_000
@@ -110,7 +109,6 @@ Seq_ID=n_identical/n_aligned= {p_Seq_ID:4.3f}
 TIME = '''
 #Total CPU time is {total_time:5.2f} seconds
 '''
-
 
 class ARTEMIS:
 
@@ -1148,7 +1146,6 @@ class ARTEMIS:
         d0  = property(get_d0)
 
 
-
 if __name__ == '__main__':
 
     args = argParse(sys.argv[1:])
@@ -1156,7 +1153,6 @@ if __name__ == '__main__':
     if args.threads > 1:
         if 'fork' in mp.get_all_start_methods():
             mp.set_start_method('fork')
-
 
     with open(RESREPR1, 'r') as file:
         repr1 = json.load(file)

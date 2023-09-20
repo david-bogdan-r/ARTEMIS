@@ -111,7 +111,7 @@ ARTEMIS was tested with two different Python3 environments:
     rres=STRING, qres=STRING [DEFAULT: rres="#1",qres="#1"]
         The specification of the input reference (rres) and query (qres) 
         structures. Only the specified residues will considered as part 
-        of the structure and all the other residues will be ignored. 
+        of the structure and all the other residues will be ignored.
         See the format description at the end of the OPTIONS section.
 
     rresneg=STRING, qresneg=STRING [DEFAULT: None]
@@ -150,20 +150,20 @@ ARTEMIS was tested with two different Python3 environments:
     threads=INT [DEFAULT: threads=CPU_COUNT]
         Number of CPUs to use.
 
-    step_divider=INT [DEFAULT: step_divider=0 if len(qseed) < 500 else 100]
+    step_divider=INT [DEFAULT: step_divider=0 if len(qres) < 500 else 100]
         To speed up the procedure of pairwise superpositions of structures 
         to find sets of mutually closest residues, ARTEMIS can skip rseed 
         residuals in steps of
-        1 + number of qseed residues // step_divider
+        1 + number of qres residues // step_divider
         If step_divider is 0, ARTEMIS does not skip rseed residuals.
-        If the number of qseed residues exceeds 500 and step_divider
+        If the number of qres residues exceeds 500 and step_divider
         is not specified, then step_divider automatically becomes 100.
 
-    nlargest=INT [DEFAULT: nlargest=len(qres) if len(qseed) < 500 else 2*threads]
+    nlargest=INT [DEFAULT: nlargest=len(qres) if len(qres) < 500 else 2*threads]
         Number of largest mutually nearest sets of residues for which 
         alignments are constructed.
 
-    shift=FLOAT [DEFAULT: shift=3 if len(qseed) < 500 else 20]
+    shift=FLOAT [DEFAULT: shift=3 if len(qres) < 500 else 20]
         The value by which the Score Matrix is shifted for Needleman-Wunsch.
         Larger shift, greater coverage.
 

@@ -1,6 +1,7 @@
 from typing import Callable
 
 import numpy as np
+import pandas as pd 
 from scipy.spatial.distance import cdist
 
 from src.Hit import closest, hitFromAli
@@ -72,6 +73,14 @@ def Impose(
 
 
 def Align(
+    ri:'np.ndarray', qi:'np.ndarray',
+    shift:'float',
+    rresrepr1:'pd.Series'
+):
+    pass
+
+
+def Align_(
     ri:'np.ndarray', qi:'np.ndarray',
     shift:'float',
     rc:'np.ndarray', qc:'np.ndarray',

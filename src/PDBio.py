@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 from io import IOBase
 from string import ascii_letters, digits
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -164,18 +165,41 @@ def as_cif(text:'str') -> 'pd.DataFrame':
 
 
 def read_pdb(path:'str|IOBase') -> 'pd.DataFrame':
-    return as_pdb(read(path))
+    atom_site = as_pdb(read(path))
+
+    if atom_site['Cartn_x'].dtype != float:
+        if isinstance(path, str):
+            warnings.warn(
+                'It looks like the file={} read incorrectly'.format(path)
+            )
+
+    return atom_site
+
 
 def read_cif(path:'str|IOBase') -> 'pd.DataFrame':
     return as_cif(read(path))
 
 
-@dataclass
-class Model:
+class BaseModel:
 
-    name:'str'
-    fmt :'str'
-    atom_site:'pd.DataFrame'
+    def __init__(self, path:'str', fmt:'str') -> 'None':
+
+        self.path = path
+        self.fmt = fmt
+
+        name, _ = os.path.splitext(path)
+        name = name.split(os.sep)[-1]
+
+
+        if fmt == '.cif':
+            atom_site = read_cif(path)
+        else:
+            atom_site = read_pdb(path)
+
+        self.path = path
+        self.name = name
+        self.fmt  = fmt
+        self.atom_site = atom_site
 
 
     def __str__(self) -> 'str':
@@ -204,10 +228,10 @@ class Model:
 
     def copy(self):
 
-        new = Model(
+        new = BaseModel(
             self.name,
             self.fmt,
-            self.atom_site.copy()
+            self.atom_site.copy() # type: ignore
         )
 
         return new
@@ -313,6 +337,9 @@ class Model:
     def get_pdb_text(self) -> 'str':
 
         atom_site = self.get_pdb_atom_site()
+        if atom_site.empty:
+            return ''
+
         chain_names = chain_rename(atom_site)
         atom_site['auth_atom_id'] = atom_site.apply(atom_id_PDBformat, axis=1)
 
@@ -544,12 +571,14 @@ def specParse(spec:'str') -> 'list':
 
     return [parse(s) for s in spec.split()]
 
-def getResSpec(res:'np.ndarray', spec:'str', neg:'bool'=False) -> 'list':
+def getResSpec(atom_site:'pd.DataFrame', spec:'str', neg:'bool'=False) -> 'list':
 
+    res = atom_site[MCBI].drop_duplicates().values
     n   = len(res)
     msk = np.array([False] * n)
 
     res = res.T
+
     for m, c, b, s, e in specParse(spec):
 
         cur_msk = np.array([True] * n)

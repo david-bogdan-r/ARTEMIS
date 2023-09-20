@@ -985,12 +985,16 @@ class ARTEMIS:
                 erval   = res
                 if seed is None:
                     self.seed = self.res
+                else:
+                    self.seed = seed
             else:
                 resi = getResSpec(atom_site, resneg, True)
                 erkey = 'resneg'
                 erval = resneg
                 if seed is None:
                     self.seed = self.resneg
+                else:
+                    self.seed = seed
 
             resi = pd.MultiIndex.from_tuples(resi, names=MCBI)
             self.resi  = resi

@@ -6,7 +6,7 @@ import sys
 from copy import deepcopy
 from datetime import datetime as dt
 from functools import partial
-from heapq import nlargest as nlargestf
+from heapq import nlargest
 from typing import Callable, Iterable
 
 import numpy as np
@@ -42,7 +42,6 @@ HEAD ='''
  * Please email comments and suggestions to dbohdan@iimcb.gov.pl    *
  ********************************************************************
  '''
-
 
 CONFIG = '''
 Configuration:
@@ -109,6 +108,7 @@ Seq_ID=n_identical/n_aligned= {p_Seq_ID:4.3f}
 TIME = '''
 #Total CPU time is {total_time:5.2f} seconds
 '''
+
 
 class ARTEMIS:
 
@@ -552,13 +552,13 @@ class ARTEMIS:
 
         while i + SEEDPOOL < count:
             step = [next(seed) for _ in range(SEEDPOOL)]
-            h = nlargestf(
+            h = nlargest(
                 self.nlargest,
                 h + self.get_hit(step),
                 key=len
             )
 
-        h = nlargestf(
+        h = nlargest(
             self.nlargest,
             h + self.get_hit(seed),
             key=len

@@ -22,7 +22,7 @@ from src.resrepr import resrepr
 
 BASEDIR  = os.path.dirname(__file__)
 SEEDPOOL = 100_000
-RESREPR1 = 'src/resrepr/artemis.json'
+RESREPR1 = BASEDIR + '/src/resrepr/artemis.json'
 RESREPR2 = "C3'"
 MCBI     = [
     'pdbx_PDB_model_num',

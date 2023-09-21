@@ -1,5 +1,4 @@
 import os
-from dataclasses import dataclass
 from io import IOBase
 from string import ascii_letters, digits
 import warnings

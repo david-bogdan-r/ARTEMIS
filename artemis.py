@@ -34,14 +34,14 @@ CRDN     = ['Cartn_x', 'Cartn_y', 'Cartn_z']
 
 INDEX = '{head}{config}{alignment}{distance}{permutation}{time}'
 
-HEAD =''' 
+HEAD ='''
  ********************************************************************
  * ARTEMIS (Version 20230828)                                       *
  * using ARTEM to Infer Sequence alignment                          *
  * Reference: TODO                                                  *
  * Please email comments and suggestions to dbohdan@iimcb.gov.pl    *
  ********************************************************************
- '''
+'''
 
 CONFIG = '''
 Configuration:
@@ -557,6 +557,7 @@ class ARTEMIS:
                 h + self.get_hit(step),
                 key=len
             )
+            i += SEEDPOOL
 
         h = nlargest(
             self.nlargest,

@@ -96,7 +96,6 @@ argparser = argparse.ArgumentParser(
                 'is a tool for the RNA 3D structure '
                 'superposition and determination of '
                 'the structure-based sequence alignment.',
-    epilog='Text at the bottom of help',
     add_help=False,
     usage= '\n'
     'python3 artemis.py -r FILENAME -q FILENAME [OPTIONS]\n'
@@ -210,7 +209,7 @@ argparser.add_argument(
     required=False,
     type=float,
     help='The value by which the Score Matrix is shifted for Needleman-Wunsch. '
-        'Larger shift, greater coverage.'
+         'Larger shift, greater coverage.'
 )
 
 

@@ -109,10 +109,127 @@ TIME = '''
 #Total CPU time is {total_time:5.2f} seconds
 '''
 
+class DataModel(BaseModel):
+
+    def __init__(self, path:'str', fmt:'str',
+                repr1:'dict', repr2:'dict',
+                res:'str', resneg:'str|None', seed:'str|None') -> 'None':
+
+        super().__init__(path, fmt)
+
+        self.repr1 = repr1
+        self.repr2 = repr2
+
+        self.res  = res
+        self.resneg = resneg
+
+        atom_site = self.atom_site
+
+        resrepr1 = resrepr(atom_site, **repr1)
+        resrepr2 = resrepr(atom_site, **repr2)
+
+        self.resrepr1 = resrepr1
+        self.resrepr2 = resrepr2
+
+        atom_site = atom_site[atom_site['auth_comp_id']
+                                .isin(repr1 | repr2)]
+
+        if resneg is None:
+            resi = getResSpec(atom_site, res)
+            erkey = 'res'
+            erval   = res
+            if seed is None:
+                self.seed = self.res
+            else:
+                self.seed = seed
+        else:
+            resi = getResSpec(atom_site, resneg, True)
+            erkey = 'resneg'
+            erval = resneg
+            if seed is None:
+                self.seed = self.resneg
+            else:
+                self.seed = seed
+
+        resi = pd.MultiIndex.from_tuples(resi, names=MCBI)
+        self.resi  = resi
+
+        if resi.empty:
+            raise ValueError(
+                'Empty residue set path={}:{}={}.'
+                .format(path, erkey, erval)
+            )
+
+        if seed is None:
+            seedi = resi
+        else:
+            seedi = getResSpec(atom_site, seed)
+        seedi = pd.MultiIndex.from_tuples(seedi, names=MCBI)
+        self.seedi = seedi
+
+        s = resrepr1.loc[seedi]
+        s = s[s.notna()].values
+        self.s = s
+
+        m = resrepr2.loc[resi]
+        m = m[m.notna()]
+        self.i = m.index
+
+        m = np.vstack(m.values) # type: ignore
+        self.m = m
+
+        t = KDTree(m)
+        self.t = t
+
+    def __repr__(self) -> 'str':
+        return '<{}{} DataModel>'.format(self, self.fmt)
+
+    def __len__(self) -> 'int':
+        return len(self.resi)
+
+    def get_seq(self, repr2Exist:'bool'=True) -> 'str':
+
+        if repr2Exist:
+            seq = ''.join(
+                [b if len(b) == 1 else 'M' 
+                for b in self.i.get_level_values(2)]
+            )
+        else:
+            seq = ''.join(
+                [b if len(b) == 1 else 'M' 
+                for b in self.resi.get_level_values(2)]
+            )
+
+        return seq
+
+    def get_d0(self) -> 'float':
+
+        L = len(self)
+
+        if 30 <= L:
+            return 0.6 * (L - 0.5)**(0.5) - 2.5
+
+        elif 24 <= L < 30:
+            return 0.7
+
+        elif 20 <= L < 24:
+            return 0.6
+
+        elif 16 <= L < 20:
+            return 0.5
+
+        elif 12 <= L < 16:
+            return 0.4
+
+        else:
+            return 0.3
+
+    L   = property(__len__)
+    seq = property(get_seq)
+    d0  = property(get_d0)
+
 
 class ARTEMIS:
-
-    pool = None
 
     def __init__(self,
                  r:'str', rformat:'str',
@@ -143,26 +260,16 @@ class ARTEMIS:
         if threads is None:
             threads = mp.cpu_count()
 
-        if threads > 1:
-            if ARTEMIS.pool is None:
-                ARTEMIS.pool = mp.Pool(threads)
-            else:
-                ARTEMIS.pool.close()
-                ARTEMIS.pool = mp.Pool(threads)
-
-        else:
-            if ARTEMIS.pool is not None:
-                ARTEMIS.pool.close()
-
         self.threads = threads
+        self.pool    = mp.Pool(threads)
 
-        self.r = ARTEMIS.DataModel(
+        self.r = DataModel(
             path=r, fmt=rformat,
             repr1=repr1, repr2=repr2,
             res=rres, resneg=rresneg, seed=rseed
         )
 
-        self.q = ARTEMIS.DataModel(
+        self.q = DataModel(
             path=q, fmt=qformat,
             repr1=repr1, repr2=repr2,
             res=qres, resneg=qresneg, seed=qseed
@@ -535,8 +642,8 @@ class ARTEMIS:
 
         hit = self.hit
 
-        if ARTEMIS.pool is not None:
-            hits = ARTEMIS.pool.starmap(hit, seed)
+        if self.pool is not None:
+            hits = self.pool.starmap(hit, seed)
 
         else:
             hits = [hit(*s) for s in seed]
@@ -574,8 +681,8 @@ class ARTEMIS:
             'Try other argument values.'
             )
 
-        if ARTEMIS.pool is not None:
-            ali = ARTEMIS.pool.starmap(self.align, h)
+        if self.pool is not None:
+            ali = self.pool.starmap(self.align, h)
         else:
             align = self.align
             ali = [align(hh[0], hh[1]) for hh in h]
@@ -954,201 +1061,6 @@ class ARTEMIS:
             with open('{}/{}'.format(saveto, fname), 'w') as file:
                 file.write(text)
 
-
-    class DataModel(BaseModel):
-
-        def __init__(self, path:'str', fmt:'str',
-                     repr1:'dict', repr2:'dict',
-                     res:'str', resneg:'str|None', seed:'str|None') -> 'None':
-
-            super().__init__(path, fmt)
-
-            self.repr1 = repr1
-            self.repr2 = repr2
-
-            self.res  = res
-            self.resneg = resneg
-
-            atom_site = self.atom_site
-
-            resrepr1 = resrepr(atom_site, **repr1)
-            resrepr2 = resrepr(atom_site, **repr2)
-
-            self.resrepr1 = resrepr1
-            self.resrepr2 = resrepr2
-
-            atom_site = atom_site[atom_site['auth_comp_id']
-                                  .isin(repr1 | repr2)]
-
-            if resneg is None:
-                resi = getResSpec(atom_site, res)
-                erkey = 'res'
-                erval   = res
-                if seed is None:
-                    self.seed = self.res
-                else:
-                    self.seed = seed
-            else:
-                resi = getResSpec(atom_site, resneg, True)
-                erkey = 'resneg'
-                erval = resneg
-                if seed is None:
-                    self.seed = self.resneg
-                else:
-                    self.seed = seed
-
-            resi = pd.MultiIndex.from_tuples(resi, names=MCBI)
-            self.resi  = resi
-
-            if resi.empty:
-                raise ValueError(
-                    'Empty residue set path={}:{}={}.'
-                    .format(path, erkey, erval)
-                )
-
-            if seed is None:
-                seedi = resi
-            else:
-                seedi = getResSpec(atom_site, seed)
-            seedi = pd.MultiIndex.from_tuples(seedi, names=MCBI)
-            self.seedi = seedi
-
-            s = resrepr1.loc[seedi]
-            s = s[s.notna()].values
-            self.s = s
-
-            m = resrepr2.loc[resi]
-            m = m[m.notna()]
-            self.i = m.index
-
-            m = np.vstack(m.values) # type: ignore
-            self.m = m
-
-            t = KDTree(m)
-            self.t = t
-
-        def set_repr1(self, repr1:'dict'):
-            self.repr1 = repr1
-
-            atom_site = self.atom_site
-            resrepr1 = resrepr(atom_site, **repr1)
-            self.resrepr1 = resrepr1
-
-            atom_site = atom_site[atom_site['auth_comp_id']
-                                  .isin(repr1 | self.repr2)]
-            s = resrepr1.loc[self.seedi]
-            s = s[s.notna()].values
-            self.s = s
-
-        def set_repr2(self, repr2:'dict'):
-            self.repr2 = repr2
-
-            atom_site = self.atom_site
-            resrepr2 = resrepr(atom_site, **repr2)
-            self.resrepr2 = resrepr2
-
-            atom_site = atom_site[atom_site['auth_comp_id']
-                                  .isin(self.repr1 | repr2)]
-
-            m = resrepr2.loc[self.resi]
-            m = m[m.notna()]
-            self.i = m.index
-
-            m = np.vstack(m.values) # type: ignore
-            self.m = m
-
-            t = KDTree(m)
-            self.t = t
-
-        def set_res(self, res:'str', resneg:'str|None'=None):
-
-            atom_site = self.atom_site
-            atom_site = (atom_site[atom_site['auth_comp_id']
-                                   .isin(self.repr1 | self.repr2)])
-
-            if resneg is None:
-                resi = getResSpec(atom_site, res)
-            else:
-                resi = getResSpec(atom_site, resneg, True)
-            resi = pd.MultiIndex.from_tuples(resi, names=MCBI)
-            self.resi  = resi
-
-            if self.seed is None:
-                seedi = resi
-                seedi = pd.MultiIndex.from_tuples(seedi, names=MCBI)
-                self.seedi = seedi
-                s = self.resrepr1.loc[seedi]
-                s = s[s.notna()].values
-                self.s = s
-
-                m = self.resrepr2.loc[resi]
-                m = m[m.notna()]
-                self.i = m.index
-
-                m = np.vstack(m.values) # type: ignore
-                self.m = m
-
-                t = KDTree(m)
-                self.t = t
-
-        def set_seed(self, seed:'str|None'):
-            if seed is None:
-                seedi = self.resi
-            else:
-                seedi = getResSpec(self.atom_site, seed)
-            seedi = pd.MultiIndex.from_tuples(seedi, names=MCBI)
-            self.seedi = seedi
-
-            s = self.resrepr1.loc[seedi]
-            s = s[s.notna()].values
-            self.s = s
-
-        def __repr__(self) -> 'str':
-            return '<{}{} DataModel>'.format(self, self.fmt)
-
-        def __len__(self) -> 'int':
-            return len(self.resi)
-
-        def get_seq(self, repr2Exist:'bool'=True) -> 'str':
-
-            if repr2Exist:
-                seq = ''.join(
-                    [b if len(b) == 1 else 'M' 
-                    for b in self.i.get_level_values(2)]
-                )
-            else:
-                seq = ''.join(
-                    [b if len(b) == 1 else 'M' 
-                    for b in self.resi.get_level_values(2)]
-                )
-
-            return seq
-
-        def get_d0(self) -> 'float':
-
-            L = len(self)
-
-            if 30 <= L:
-                return 0.6 * (L - 0.5)**(0.5) - 2.5
-
-            elif 24 <= L < 30:
-                return 0.7
-
-            elif 20 <= L < 24:
-                return 0.6
-
-            elif 16 <= L < 20:
-                return 0.5
-
-            elif 12 <= L < 16:
-                return 0.4
-
-            else:
-                return 0.3
-
-        L   = property(__len__)
-        seq = property(get_seq)
-        d0  = property(get_d0)
 
 
 if __name__ == '__main__':

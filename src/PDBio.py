@@ -1,7 +1,8 @@
 import os
+import warnings
+from copy import deepcopy
 from io import IOBase
 from string import ascii_letters, digits
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -224,17 +225,8 @@ class BaseModel:
         with open(path, 'w') as file:
             file.write(text)
 
-
     def copy(self):
-
-        new = BaseModel(
-            self.name,
-            self.fmt,
-            self.atom_site.copy() # type: ignore
-        )
-
-        return new
-
+        return deepcopy(self)
 
     def get_cif_atom_site(self) -> 'pd.DataFrame':
 

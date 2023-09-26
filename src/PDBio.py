@@ -7,7 +7,7 @@ from string import ascii_letters, digits
 import numpy as np
 import pandas as pd
 
-pd.to_numeric.__defaults__ = 'ignore', None
+pd.to_numeric.__defaults__ = ('ignore',) + pd.to_numeric.__defaults__[1:]
 
 
 FORMAT = {

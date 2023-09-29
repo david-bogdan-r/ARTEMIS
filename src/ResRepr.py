@@ -1,3 +1,5 @@
+import json
+
 import pandas as pd
 import numpy as np
 
@@ -58,3 +60,15 @@ def resrepr(atom_site:'pd.DataFrame', **kwargs:'list[str]') -> 'pd.Series':
            .apply(repr)) # type: ignore
 
     return rep
+
+def load_resrepr(*paths):
+    reprs   = []
+    passed  = {}
+
+    for path in paths:
+        if path not in passed:
+            with open(path, 'r') as file:
+                passed[path] = json.load(file)
+        reprs.append(passed[path])
+
+    return reprs

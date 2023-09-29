@@ -133,7 +133,8 @@ class DataModel(BaseModel):
         self.resrepr2 = resrepr2
 
         atom_site = atom_site[atom_site['auth_comp_id']
-                                .isin(repr1.update(repr2))]
+                                .isin( list(repr1.keys()) \
+                                      +list(repr2.keys()))]
 
         if resneg is None:
             resi = getResSpec(atom_site, res)

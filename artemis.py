@@ -19,7 +19,7 @@ from src.argparse import argParse
 from src.Kabsch import transform
 from src.NW import globalAlign
 from src.PDBio import BaseModel, getResSpec
-from src.resrepr import resrepr
+from src.resrepr_ import resrepr
 
 BASEDIR  = os.path.dirname(__file__)
 SEEDPOOL = 100_000

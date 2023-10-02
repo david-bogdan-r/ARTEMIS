@@ -33,7 +33,7 @@ MCBI     = [
 ]
 CRDN     = ['Cartn_x', 'Cartn_y', 'Cartn_z']
 
-INDEX = '{head}{config}{alignment}{distance}{permutation}{time}'
+INDEX = '{head}{config}{alignment}{adistance}{permutation}{pdistance}{time}'
 
 HEAD ='''
  ********************************************************************
@@ -133,8 +133,8 @@ class DataModel(BaseModel):
         self.resrepr2 = resrepr2
 
         atom_site = atom_site[atom_site['auth_comp_id']
-                                .isin( list(repr1.keys()) \
-                                      +list(repr2.keys()))]
+                              .isin( list(repr1.keys()) \
+                                    +list(repr2.keys()))]
 
         if resneg is None:
             resi = getResSpec(atom_site, res)
@@ -856,7 +856,7 @@ class ARTEMIS:
 
         return permutation
 
-    def get_distance(self):
+    def get_adistance(self):
 
         r = self.r
         q = self.q
@@ -910,6 +910,59 @@ class ARTEMIS:
             
         return title, rows
 
+    def get_pdistance(self):
+
+        r = self.r
+        q = self.q
+
+        title = {
+            'rName': r.name,
+            'qName': q.name
+        }
+
+        pAns  = self.pAns
+        rAli = pAns['rAli']
+        qAli = pAns['qAli']
+
+        aliLength = len(rAli)
+
+        L1 = len(r.name)
+        L2 = len(q.name)
+
+        rows = []
+        if aliLength:
+            a = pAns['a']
+            b = pAns['b']
+
+            rm = np.vstack(r.resrepr2.loc[rAli])
+            qm = np.dot(np.vstack(q.resrepr2.loc[qAli]), a) + b
+            d  = np.sqrt(((rm - qm) ** 2).sum(axis=1))
+
+            for rb, qb, dd in zip(rAli, qAli, d):
+                rRes = '.'.join(map(str, rb))
+                qRes = '.'.join(map(str, qb))
+
+                if len(rRes) > L1:
+                    L1 = len(rRes)
+                if len(qRes) > L2:
+                    L2 = len(qRes)
+
+                entity = {
+                    'rRes'  : rRes,
+                    'd'     : dd,
+                    'qRes'  : qRes,
+                }
+                rows.append(entity)
+
+            for entity in rows:
+                entity['L1'] = L1
+                entity['L2'] = L2
+
+        title['L1'] = L1 # type: ignore
+        title['L2'] = L2 # type: ignore
+            
+        return title, rows
+
     def get_time(self) -> 'dict':
 
         toc = dt.now()
@@ -936,15 +989,25 @@ class ARTEMIS:
 
         if self.verbose:
             index['config']   = CONFIG.format(**self.get_config())
-            t, r = self.get_distance()
+
+            t, r = self.get_adistance()
             s = DISTANCE[0].format(**t)
             rowpat = DISTANCE[1]
             for rr in r:
                 s += rowpat.format(**rr)
-            index['distance'] = s
+            index['adistance'] = s
+
+            t, r = self.get_pdistance()
+            s = DISTANCE[0].format(**t)
+            rowpat = DISTANCE[1]
+            for rr in r:
+                s += rowpat.format(**rr)
+            index['pdistance'] = s
+
         else:
             index['config']   = ''
-            index['distance'] = ''
+            index['adistance'] = ''
+            index['pdistance'] = ''
 
         return INDEX.format(**index)
 

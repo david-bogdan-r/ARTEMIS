@@ -136,7 +136,7 @@ argparser.add_argument(
     action='store_true',
     dest='verbose',
     required=False,
-    help='TODO'
+    help='(default: verbose=False) TODO'
 )
 
 argparser.add_argument(
@@ -145,7 +145,7 @@ argparser.add_argument(
     action='store_true',
     dest='permutation',
     required=False,
-    help='TODO'
+    help='(default: permutation=False) TODO'
 )
 
 argparser.add_argument(
@@ -155,7 +155,7 @@ argparser.add_argument(
     dest='threads',
     required=False,
     type=threads,
-    help='Number of CPUs to use.'
+    help='(default: threads=%(default)d [CPU count]) Number of CPUs to use.'
 )
 
 argparser.add_argument(
@@ -165,7 +165,7 @@ argparser.add_argument(
     dest='matchrange',
     required=False,
     type=float,
-    help='The threshold used for searching the mutually closest residues. '
+    help='(default: matchrange=3.5) The threshold used for searching the mutually closest residues. '
         "Only those pairs of residues that have their C3' atoms at a distance "
         'under the specified matchrange value can be added to the subset '
         'of the mutually closest residues. The higher matchrange value '
@@ -181,7 +181,7 @@ argparser.add_argument(
     dest='stepdiv',
     required=False,
     type=float,
-    help='To speed up the procedure of pairwise superpositions of structures '
+    help='(default: stepdiv=0 if QUARY length less than 500nt else stepdiv=100) To speed up the procedure of pairwise superpositions of structures '
         'to find sets of mutually closest residues, ARTEMIS can skip rseed '
         'residuals in steps of '
         '1 + (number of qres residues) // stepdiv . '
@@ -197,7 +197,7 @@ argparser.add_argument(
     dest='nlargest',
     required=False,
     type=int,
-    help='Number of largest mutually nearest sets of residues for which '
+    help='(default: nlargest=(length of QUARY) if length of QUARY less than 500nt else nlargest=2*THREADS) Number of largest mutually nearest sets of residues for which '
         'alignments are constructed to define best.'
 )
 
@@ -208,10 +208,9 @@ argparser.add_argument(
     dest='shift',
     required=False,
     type=float,
-    help='The value by which the Score Matrix is shifted for Needleman-Wunsch. '
+    help='(default: shift=3 if length of QUARY less than 500nt else shift=20)The value by which the Score Matrix is shifted for Needleman-Wunsch. '
          'Larger shift, greater coverage.'
 )
-
 
 file = argparser.add_argument_group('input file handling')
 
@@ -219,7 +218,7 @@ file.add_argument(
     '-rformat', '--rformat',
     metavar='',
     type=fileformat,
-    help='See -qformat.'
+    help='(default: rformat=[r extantion]|PDB) See -qformat.'
 )
 
 file.add_argument(
@@ -227,7 +226,7 @@ file.add_argument(
     metavar='',
     default=None,
     type=fileformat,
-    help='The specification of the input coordinate file formats '
+    help='(default: qformat=[q extantion]|PDB) The specification of the input coordinate file formats '
          '(case-insensitive). By default, ARTEMIS tries to infer the format '
          'from the extensions of the input filenames. ".pdb", ".cif", '
          'and ".mmcif" formats can be recognized (case-insensitive). In the case '
@@ -243,7 +242,7 @@ file.add_argument(
     metavar='',
     default='#1',
     type=str,
-    help='See -qres.'
+    help='(default: rres=#1) See -qres.'
 )
 
 file.add_argument(
@@ -251,9 +250,9 @@ file.add_argument(
     metavar='',
     default='#1',
     type=str,
-    help='The specification of the input reference (rres) and query (qres) '
+    help='(default: qres=#1) The specification of the input reference (rres) and query (qres) '
          'structures. Only the specified residues will considered as part '
-         'of the structure and all the other residues will be ignored.'
+         'of the structure and all the other residues will be ignored. '
          'See the format description at the end of the OPTIONS section.'
 )
 
@@ -262,7 +261,7 @@ file.add_argument(
     metavar='',
     default=None,
     type=str,
-    help='See -qresneg.'
+    help='(default: rresneg=None) See -qresneg.'
 )
 
 file.add_argument(
@@ -270,7 +269,7 @@ file.add_argument(
     metavar='',
     default=None,
     type=str,
-    help='The specification of the input reference (rresneg) and query (qresneg) '
+    help='(default: qresneg=None) The specification of the input reference (rresneg) and query (qresneg) '
          'structures. The specified residues will be ignored and all the other '
          'residues considered as part of the structure. If both "rres" '
          'and "rresneg" (or "qres" and "qresneg") are specified simultaneusly, '
@@ -284,7 +283,7 @@ file.add_argument(
     metavar='',
     default=None,
     type=str,
-    help='See -qseed.'
+    help='(default: rseed=RRES|RRESNEG) See -qseed.'
 )
 
 file.add_argument(
@@ -292,7 +291,7 @@ file.add_argument(
     metavar='',
     default=None,
     type=str,
-    help='The specification of the reference and query residues that ARTEMIS '
+    help='(default: qseed=QRES|QRESNEG) The specification of the reference and query residues that ARTEMIS '
          'can use for single-residue matching seeds. '
          'See the format description at the end of the OPTIONS section.'
 )
@@ -305,7 +304,7 @@ save.add_argument(
     metavar='',
     default=None,
     type=str,
-    help='Path to the output folder to save the coordinate files '
+    help='(default: saveto=None) Path to the output folder to save the coordinate files '
         'of the superimposed query structures along with the mutually '
         'closest residue subsets. If the specified folder does not exist, '
         'ARTEMIS will create it. If the folder is not specified, '
@@ -317,7 +316,7 @@ save.add_argument(
     metavar='',
     default=None,
     type=fileformat,
-    help='The specification of the format of the output coordinate files. '\
+    help='(default: saveformat=QFORMAT)The specification of the format of the output coordinate files. '\
         'By default, ARTEMIS will save the coordinate files in the same format '\
         'as the query input file. If the "saveformat" parameter is specified '\
         'and it\'s either "PDB", "CIF", or "MMCIF" (case-insensitive), ARTEMIS '\
@@ -329,7 +328,7 @@ save.add_argument(
     metavar='',
     default=None,
     type=str,
-    help='The specification of the query structure residues that will be saved '
+    help='(default: saveres=QRES|QRESNEG)The specification of the query structure residues that will be saved '
          'in the output coordinate files. '
          'See the format description at the end of the OPTIONS section.'
 )

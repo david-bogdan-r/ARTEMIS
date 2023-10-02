@@ -53,7 +53,7 @@ def setDefaultFormats(args:'argparse.Namespace'):
         if args.qresneg is None:
             args.saveres = args.qres
         else:
-            args.saveres = args.resneg
+            args.saveres = args.qresneg
 
     if args.verbose and not args.permutation:
         args.permutation = True

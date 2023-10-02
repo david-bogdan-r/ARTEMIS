@@ -181,7 +181,7 @@ argparser.add_argument(
     dest='stepdiv',
     required=False,
     type=float,
-    help='(default: stepdiv=0 if QUARY length less than 500nt else stepdiv=100) To speed up the procedure of pairwise superpositions of structures '
+    help='(default: stepdiv=0 if QUERY length less than 500nt else stepdiv=100) To speed up the procedure of pairwise superpositions of structures '
         'to find sets of mutually closest residues, ARTEMIS can skip rseed '
         'residuals in steps of '
         '1 + (number of qres residues) // stepdiv . '
@@ -197,7 +197,7 @@ argparser.add_argument(
     dest='nlargest',
     required=False,
     type=int,
-    help='(default: nlargest=(length of QUARY) if length of QUARY less than 500nt else nlargest=2*THREADS) Number of largest mutually nearest sets of residues for which '
+    help='(default: nlargest=(length of QUERY) if length of QUERY less than 500nt else nlargest=2*THREADS) Number of largest mutually nearest sets of residues for which '
         'alignments are constructed to define best.'
 )
 
@@ -208,7 +208,7 @@ argparser.add_argument(
     dest='shift',
     required=False,
     type=float,
-    help='(default: shift=3 if length of QUARY less than 500nt else shift=20)The value by which the Score Matrix is shifted for Needleman-Wunsch. '
+    help='(default: shift=3 if length of QUERY less than 500nt else shift=20)The value by which the Score Matrix is shifted for Needleman-Wunsch. '
          'Larger shift, greater coverage.'
 )
 
@@ -218,7 +218,7 @@ file.add_argument(
     '-rformat', '--rformat',
     metavar='',
     type=fileformat,
-    help='(default: rformat=[r extantion]|PDB) See -qformat.'
+    help='(default: rformat=[r extension]|PDB) See -qformat.'
 )
 
 file.add_argument(
@@ -226,7 +226,7 @@ file.add_argument(
     metavar='',
     default=None,
     type=fileformat,
-    help='(default: qformat=[q extantion]|PDB) The specification of the input coordinate file formats '
+    help='(default: qformat=[q extension]|PDB) The specification of the input coordinate file formats '
          '(case-insensitive). By default, ARTEMIS tries to infer the format '
          'from the extensions of the input filenames. ".pdb", ".cif", '
          'and ".mmcif" formats can be recognized (case-insensitive). In the case '

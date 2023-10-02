@@ -169,15 +169,22 @@ def read_pdb(path:'str|IOBase') -> 'pd.DataFrame':
 
     if atom_site['Cartn_x'].dtype != float:
         if isinstance(path, str):
-            warnings.warn(
-                'It looks like the file={} read incorrectly'.format(path)
-            )
+            raise Exception('It looks like the file={} read incorrectly.\n'
+                            'Check that the specified file format is correct.'
+                            .format(path))
 
     return atom_site
 
 
 def read_cif(path:'str|IOBase') -> 'pd.DataFrame':
-    return as_cif(read(path))
+    atom_site = as_cif(read(path))
+
+    if atom_site.empty:
+        raise Exception('It looks like the file={} read incorrectly.\n'
+                        'Check that the specified file format is correct.'
+                        .format(path))
+
+    return atom_site
 
 
 class BaseModel:

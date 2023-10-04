@@ -18,6 +18,7 @@ from src.NW import globalAlign
 from src.PDBio import BaseModel, getResSpec
 from src.resrepr import load_resrepr, resrepr
 
+
 SEEDPOOL = 100_000
 
 BASEDIR  = os.path.dirname(__file__)

@@ -3,9 +3,9 @@ import multiprocessing as mp
 import os
 import sys
 from copy import deepcopy
-from time import time
 from functools import partial
 from heapq import nlargest
+from time import time
 from typing import Callable, Iterable
 
 import numpy as np
@@ -16,12 +16,7 @@ from scipy.spatial.distance import cdist
 from src.Kabsch import transform
 from src.NW import globalAlign
 from src.PDBio import BaseModel, getResSpec
-from src.resrepr import resrepr, load_resrepr
-
-try:
-    TERMINAL_WIDTH = os.get_terminal_size()[0]
-except:
-    TERMINAL_WIDTH = 79
+from src.resrepr import load_resrepr, resrepr
 
 SEEDPOOL = 100_000
 
@@ -43,6 +38,8 @@ MCBI = [
 ]
 
 INDEX = '{head}{config}{alignment}{distance_1}{permutation}{distance_2}{time}'
+
+TERMINAL_WIDTH = os.get_terminal_size()[0] if __name__ == '__main__' else 79
 
 HEAD  = '''
  ********************************************************************

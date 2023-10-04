@@ -1,6 +1,6 @@
 # ARTEMIS
 
-Using [ARTEM](https://github.com/david-bogdan-r/ARTEM) to Infer Sequence alignment (ARTEMIS) is a tool for the RNA 3D structure superposition and determination of the structure-based sequence alignment
+Using [ARTEM](https://github.com/david-bogdan-r/ARTEM) to Infer Sequence alignment (ARTEMIS) is a tool for the RNA 3D structure superposition and determination of the structure-based sequence alignment.
 
 ## Reference
 
@@ -8,28 +8,27 @@ TODO
 
 ## How ARTEMIS works
 
-ARTEMIS reads a reference and a query structure from the specified coordinate files in PDB or in mmCIF format and finds two alignments of structure sequences.
-The first alignment does not allow rearrangement and is fed to the standard output.
-If verbose mode is enabled, the characteristics of the second alignment, which allows permutations, are additionally fed to the standard output.
-Verbose mode is enabled automatically if the TM-score of the permutation alignment (normalised by the length of the query structure) is 10% higher than the TM-score of the alignment without permutations.
-The user can choose to save the superpositions of the query structures in PDB or mmCIF format and the residue matching tables in the specified folder.
-If verbose mode is disabled, only the superposition and the residue matching table for alignment without permutations are saved.
+ARTEMIS reads a reference and a query structure from the specified coordinate files in PDB or in mmCIF format and identifies the two best superpositions.
+The first superposition is strictly backbone oriented (i.e. does not allow backbone permutations) and is fed to the standard output.
+In verbose mode, the details of the second superposition, which allows permutations, are additionally fed to the standard output.
+The second superposition details are printed automatically if its TM-score is at least 10% higher than the TM-score of the first alignment.
+The user can choose to save the superpositions of the query structure in PDB or mmCIF format along with the residue matching tables in the specified folder.
+By default, ARTEMIS saves the output files only for the first alignment, unless the second one is at least 10% better in TM-score.
 By default, ARTEMIS reads the entire first models of the input files.
 
 ### Algorithm
 
 - perform superpositions of the query structure on the reference structure by each possible pair of residues between the sets *rseed* and *qseed* (the superposition operator is calculated using Kabsch's algorithm between 3-atom coordinate representations of residues);
-- in each superposition find a set of residue pairs between structures with a distance not greater than *matchrange* angstroms between C3' atoms;
-- among the *nlagest* largest sets of residue pairs, build alignments with and without permutations:
-  - by the subset of mutually closest pairs superimpose the query structure on the reference structure (using 3-atom coordinate representations of residues);
-  - closest pairs of residues between resuperimposed structures with the distance between C3' atoms not greater than 8 angstroms are considered to be **alignments with permutations**;
-  - calculate the Score Matrix
-    - multiply the matrix of distances between C3' atoms of superimposed structures by -1;
-    - shift the matrix to the left by the minimum value in it (values in the matrix are not negative);
-    - shift the matrix to the left by the minimum value in the cells of residue pairs from the permutation alignment (all matrix cells corresponding to pairs of residues of permutation alignment have non-negative values);
-    - shift the matrix to the right by *shift* to increase the coverage in the alignment.
-  - finding an **alignment** by Needleman-Wunsch Algorithm (score maximisation)
-- select the better alignments by TM-score sum for the two structures.
+- in each superposition find a set of mutually closest residue pairs (residue matches) under *matchrange* angstroms between C3' atoms;
+- among the *nlargest* largest sets of residue matches, build sequence alignments with and without permutations:
+  - by the set of residue matches superimpose the query structure on the reference structure (using 3-atom coordinate representations of residues);
+  - the sets of residue matches RM between resuperimposed structures with the distance between C3' atoms under 8 angstroms are considered to be **alignments with permutations**;
+  - calculate the Score Matrix to obtain the permutation-free alignment:
+    - multiply the matrix of pairwise distances between C3' atoms of superimposed structures by -1;
+    - increase all the matrix values by a constant to set the minimum value of a residue match to zero (m_ij = m_ij - min(RM));
+    - increase all the matrix values by *shift* to improve the coverage of the alignment;
+  - find the optimal **alignment** by Needleman-Wunsch Algorithm (score maximization);
+- select the two best alignments by maximizing the sum of two TM-scores.
 
 ## Installation
 
@@ -71,11 +70,15 @@ ARTEMIS was tested with two different Python3 environments:
 
 ## Usage examples
 
-    1) python3 artemis.py r=examples/6ugg/6ugg.cif  q=examples/1ivs.pdb rres=/B qres=/C saveto=result saveformat=pdb -v
+    1) python3 artemis.py r=examples/6ugg/6ugg.cif  q=examples/1ivs.pdb rres=/B qres=/C saveto=result saveformat=pdb
 
     This command will superimpose chain C from 1ivs to chain B from 6ugg 
     and will save the superimposed structure into "result" sub-folder
-    in PDB format.
+    in PDB format. 
+    
+    2) python3 artemis.py r=examples/6ugg/6ugg.cif  q=examples/1ivs.pdb rres=/B qres=/C saveto=result saveformat=pdb -v
+
+    The same command as in example 1, but with verbose mode enabled. 
 
 ## Options
 
@@ -88,7 +91,7 @@ ARTEMIS was tested with two different Python3 environments:
         Path to a query structure, the one that ARTEMIS superimposes to 
         the reference, in PDB/mmCIF format.
 
-    matchrange=FLOAT [DEFAULT: matchrange=3.0]
+    matchrange=FLOAT [DEFAULT: matchrange=3.5]
         The threshold used for searching the mutually closest residues. 
         Only those pairs of residues that have their C3' atoms at a distance 
         under the specified matchrange value can be added to the subset 
@@ -110,7 +113,7 @@ ARTEMIS was tested with two different Python3 environments:
 
     rres=STRING, qres=STRING [DEFAULT: rres="#1",qres="#1"]
         The specification of the input reference (rres) and query (qres) 
-        structures. Only the specified residues will considered as part 
+        structures. Only the specified residues will be considered as part 
         of the structure and all the other residues will be ignored.
         See the format description at the end of the OPTIONS section.
 
@@ -132,7 +135,7 @@ ARTEMIS was tested with two different Python3 environments:
         The specification of the format of the output coordinate files. 
         By default, ARTEMIS will save the coordinate files in the same format 
         as the query input file. If the "saveformat" parameter is specified 
-        and it's either "PDB", "CIF", or "MMCIF" (case-insensitive), ARTEM 
+        and it's either "PDB", "CIF", or "MMCIF" (case-insensitive), ARTEMIS 
         will save the output coordinate files in the specified format.
 
     saveres=STRING [DEFAULT: saveres=qres]
@@ -142,7 +145,7 @@ ARTEMIS was tested with two different Python3 environments:
 
     saveto=FOLDER [DEFAULT: None]
         Path to the output folder to save the coordinate files 
-        of the superimposed query structures along with the mutually 
+        of the superimposed query structure along with the mutually 
         closest residue subsets. If the specified folder does not exist, 
         ARTEMIS will create it. If the folder is not specified, 
         nothing will be saved.
@@ -150,30 +153,32 @@ ARTEMIS was tested with two different Python3 environments:
     threads=INT [DEFAULT: threads=CPU_COUNT]
         Number of CPUs to use.
 
-    step_divider=INT [DEFAULT: step_divider=0 if len(qres) < 500 else 100]
-        To speed up the procedure of pairwise superpositions of structures 
-        to find sets of mutually closest residues, ARTEMIS can skip rseed 
-        residuals in steps of
-        1 + number of qres residues // step_divider
-        If step_divider is 0, ARTEMIS does not skip rseed residuals.
-        If the number of qres residues exceeds 500 and step_divider
-        is not specified, then step_divider automatically becomes 100.
+    stepdiv=INT [DEFAULT: stepdiv=0 if len(qres) < 500 else 100]
+        The step divider parameter. The parameter is used to speed up 
+        the procedure for large structures. If stepdiv > 0, ARTEMIS
+        will consider only each Sth reference residue as matching seed,
+        where S = 1 + len(qres)//stepdiv. If the size of the query 
+        structure exceeds 500 residues, stepdiv will be set to 100 
+        by default.
 
     nlargest=INT [DEFAULT: nlargest=len(qres) if len(qres) < 500 else 2*threads]
-        Number of largest mutually nearest sets of residues for which 
+        Number of largest mutually closest residue sets for which 
         alignments are constructed.
 
     shift=FLOAT [DEFAULT: shift=3 if len(qres) < 500 else 20]
-        The value by which the Score Matrix is shifted for Needleman-Wunsch.
-        Larger shift, greater coverage.
+        The shift value for the ScoreMatrix used in the Needleman-Wunsch
+        algorithm. Larger shift provides higher coverage.
+
+    -p, --permutation [DEFAULT: OFF]
+        Permutation mode. If specified, ARTEMIS will add the permutation 
+        alignment details to the standard output, and save its output files
+        to the saveto folder (if the folder is specified). 
+        The mode is automatically activated if the TM-score of the query 
+        structure for alignment with permutations is at least 10% higher 
+        than the TM-score of the permutation-free alignment.
 
     -v, --verbose [DEFAULT: OFF]
-        If specified, it will add the permutation alignment characteristics
-        to the standard output, and save its imposition of the query structure
-        with the residue matching table to the saveto folder. 
-        The mode is automatically activated if the TM-score of the query 
-        structure for alignment with permutation is 10% larger than
-        the TM-score of alignment without permutation.
+        Verbose mode.
 
     ***************************************************************************
     ARTEMIS uses a ChimeraX-like format to specify the residues of interest 

@@ -4,7 +4,7 @@ import multiprocessing as mp
 import os
 import sys
 from copy import deepcopy
-from datetime import datetime as dt
+from time import time
 from functools import partial
 from heapq import nlargest
 from typing import Callable, Iterable
@@ -19,23 +19,31 @@ from src.argparse import argParse
 from src.Kabsch import transform
 from src.NW import globalAlign
 from src.PDBio import BaseModel, getResSpec
-from src.resrepr import resrepr
+from src.resrepr import resrepr, load_resrepr
+
+SEEDPOOL = 100_000
 
 BASEDIR  = os.path.dirname(__file__)
-SEEDPOOL = 100_000
-RESREPR1 = BASEDIR + '/src/resrepr/artemis.json'
-RESREPR2 = "C3'"
-MCBI     = [
+
+RESREPRSOURCE = [
+    BASEDIR + '/src/resrepr/artemis_1.json', # 3-atom representation of residues
+    BASEDIR + '/src/resrepr/artemis_2.json', # C3'-atom representation of residues
+]
+RESREPR      = [partial(resrepr, **d)
+                for d in load_resrepr(*RESREPRSOURCE)]
+RESTYPES     = [*set.union(*map(lambda x: set(x.keywords.keys()), RESREPR))]
+
+MCBI = [
     'pdbx_PDB_model_num',
     'auth_asym_id',
     'auth_comp_id',
     'auth_seq_id'
 ]
-CRDN     = ['Cartn_x', 'Cartn_y', 'Cartn_z']
+# CRDN  = ['Cartn_x', 'Cartn_y', 'Cartn_z']
 
-INDEX = '{head}{config}{alignment}{adistance}{permutation}{pdistance}{time}'
+INDEX = '{head}{config}{alignment}{distance_1}{permutation}{distance_2}{time}'
 
-HEAD ='''
+HEAD  = '''
  ********************************************************************
  * ARTEMIS (Version 20230828)                                       *
  * using ARTEM to Infer Sequence alignment                          *
@@ -58,10 +66,6 @@ qformat={qformat}
 qres={qres}
 qresneg={qresneg}
 qseed={qseed}
-
-saveto={saveto}
-saveformat={saveformat}
-saveres={saveres}
 
 matchrange={matchrange}
 nlargest={nlargest}
@@ -88,13 +92,6 @@ TM-score= {qTMscore:6.5f} (normalized by length of structure q: L={qLength}, d0=
 {qAlignment}
 '''
 
-DISTANCE = [
-    '\n\n'
-    'Distance table:\n'
-    '{rName:<{L1}}  dist   {qName:<{L2}}\n',
-    '{rRes:<{L1}}  {d:<5.2f}  {qRes:<{L2}}\n'
-]
-
 PERMUTATION = '''
 _____________________________________________________________________
 Alignment with permutations:
@@ -110,44 +107,246 @@ TIME = '''
 #Total CPU time is {total_time:5.2f} seconds
 '''
 
+
+def hit(
+    rx:'np.ndarray', qx:'np.ndarray',
+    rt:'KDTree', qm:'np.ndarray',
+    matchrange:'float'
+) -> 'np.ndarray':
+
+    a, b = transform(rx, qx)
+    qt = KDTree(np.dot(qm, a) + b)
+
+    h = rt.sparse_distance_matrix(
+        qt,
+        max_distance=matchrange,
+        p=2,
+        output_type='dict'
+    )
+
+    return mutuallyClosestHit(h)
+
+def hitFromAli(ali1:'str', ali2:'str') -> 'np.ndarray':
+
+    i = -1
+    j = -1
+    keys = []
+
+    for c1, c2 in zip(ali1, ali2):
+
+        b1 = c1 != '-'
+        b2 = c2 != '-'
+
+        if b1:
+            i += 1
+        if b2:
+            j += 1
+
+        if b1 and b2:
+            keys.append([i, j])
+
+    return np.array(keys).T
+
+def mutuallyClosestHit(hit:'dict') -> 'np.ndarray':
+
+    hk  = sorted(hit, key=hit.get) # type: ignore
+    iset = set()
+    jset = set()
+
+    h = []
+    for i, j in hk:
+        if (i not in iset) and (j not in jset):
+            iset.add(i)
+            jset.add(j)
+            h.append([i, j])
+
+    h = np.array(h)
+
+    return h
+
+def impose(
+    rm:'np.ndarray', qm:'np.ndarray',
+    rL:'int', qL:'int',
+    rd2:'float', qd2:'float'
+) -> 'dict':
+
+    def diff(a, b) -> 'np.ndarray':
+
+        d:'np.ndarray' = rm - (np.dot(qm, a) + b)
+
+        return (d * d).sum(axis=1)
+
+    def score(d2):
+
+        rTM = (1 / (1 + d2 / rd2)).sum() / rL
+        qTM = (1 / (1 + d2 / qd2)).sum() / qL
+
+        RMSD = np.sqrt(np.sum(d2) / N)
+
+        return (rTM, qTM), RMSD
+
+    def opt(i:'int', j:'int'):
+
+        n = j - i
+
+        if n < 3:
+            return [(None, None), (-1, -1), -1]
+
+        nn = i + n // 2
+
+        t = transform(rm[i:j], qm[i:j])
+        d = diff(*t)
+        s = score(d)
+
+        m = d < qd2
+        c = m.sum()
+
+        if c > 2:
+            tt = transform(rm[m], qm[m])
+            ss = score(diff(*tt))
+
+            if sum(ss[0]) > sum(s[0]):
+                t = tt
+                s = ss
+
+        ans = max(
+            [[t, *s], opt(i, nn), opt(nn, j)], 
+            key=lambda x: sum(x[1]) # type: ignore
+        )
+
+        return ans
+
+    N = len(rm)
+    o = opt(0, N)
+
+    ans = {
+        'transform'  : o[0],
+        'rTM'        : o[1][0],
+        'qTM'        : o[1][1],
+        'RMSD'       : o[2]
+    }
+
+    return ans
+
+def align(
+    ri:'np.ndarray' , qi:'np.ndarray',
+    r:'DataModel'   , q:'DataModel',
+    shift:'float',
+    impose:'Callable'
+) -> 'tuple[dict, dict]':
+
+    rind = r.i[ri]
+    qind = q.i[qi]
+
+    rrepr1 = r.resrepr1.loc[rind]
+    qrepr1 = q.resrepr1.loc[qind]
+
+    rcar = rrepr1.notna().values
+    qcar = qrepr1.notna().values
+
+    car = rcar & qcar # type: ignore
+
+    rx = np.vstack(rrepr1[car].values) # type: ignore
+    qx = np.vstack(qrepr1[car].values) # type: ignore
+
+    a, b = transform(rx, qx)
+
+    rm = r.m
+    qm = q.m
+
+    dist = cdist(rm, np.dot(qm, a) + b)
+
+    ri, qi = np.where(dist < 8)
+
+    h = mutuallyClosestHit(
+        dict(zip(zip(ri, qi), dist[ri, qi]))
+    ).T
+
+    ri, qi = h[:, h[0].argsort()]
+
+    ans2 = impose(rm[ri], qm[qi])
+    ans2['rAli'] = r.i[ri]
+    ans2['qAli'] = q.i[qi]
+
+    scoremat  = -dist
+    scoremat -= scoremat.min()
+    scoremat -= min(scoremat[ri, qi]) - shift
+
+    rAli, qAli = globalAlign(r.seq, q.seq, scoremat)
+    h = hitFromAli(rAli, qAli)
+
+    if h.size < 6:
+        a = np.eye(3)
+        b = np.zeros(3)
+
+        ans1 = {
+            'transform': (a, b),
+            'rTM': -1,
+            'qTM': -1,
+            'RMSD': -1,
+            'rAli': rAli,
+            'qAli': qAli,
+        }
+
+    else:
+        ri, qi = h
+
+        ans1 = impose(rm[ri], qm[qi])
+        ans1['rAli'] = rAli
+        ans1['qAli'] = qAli
+
+    return ans1, ans2
+
+
 class DataModel(BaseModel):
 
     def __init__(self, path:'str', fmt:'str',
-                repr1:'dict', repr2:'dict',
-                res:'str', resneg:'str|None', seed:'str|None') -> 'None':
+                 res:'str'='#1', resneg:'str|None'=None, seed:'str|None'=None
+                 ) -> 'None':
 
         super().__init__(path, fmt)
 
-        self.repr1 = repr1
-        self.repr2 = repr2
-
-        self.res  = res
-        self.resneg = resneg
-
         atom_site = self.atom_site
 
-        resrepr1 = resrepr(atom_site, **repr1)
-        resrepr2 = resrepr(atom_site, **repr2)
+        resrepr1 = RESREPR[0](atom_site)
+        resrepr2 = RESREPR[1](atom_site)
+
+        mask = resrepr2.notna()
+        resrepr2[mask] = resrepr2[mask].apply(lambda x: x.mean(axis=0))
 
         self.resrepr1 = resrepr1
         self.resrepr2 = resrepr2
+        self._atom_site = atom_site[atom_site['auth_comp_id'].isin(RESTYPES)]
 
-        atom_site = atom_site[atom_site['auth_comp_id']
-                              .isin( list(repr1.keys()) \
-                                    +list(repr2.keys()))]
+        self.set_res(res, resneg, seed)
+
+
+    def set_res(self, res:'str'='#1', resneg:'str|None'=None, seed:'str|None'=None)->'None':
+
+        self.res    = res
+        self.resneg = resneg
+
+        resrepr1  = self.resrepr1
+        resrepr2  = self.resrepr2
+        atom_site = self._atom_site
 
         if resneg is None:
-            resi = getResSpec(atom_site, res)
+            resi  = getResSpec(atom_site, res)
+
             erkey = 'res'
-            erval   = res
+            erval = res
+
             if seed is None:
                 self.seed = self.res
             else:
                 self.seed = seed
+
         else:
-            resi = getResSpec(atom_site, resneg, True)
+            resi  = getResSpec(atom_site, resneg, True)
+
             erkey = 'resneg'
             erval = resneg
+
             if seed is None:
                 self.seed = self.resneg
             else:
@@ -159,7 +358,7 @@ class DataModel(BaseModel):
         if resi.empty:
             raise ValueError(
                 'Empty residue set path={}:{}={}.'
-                .format(path, erkey, erval)
+                .format(self.path, erkey, erval)
             )
 
         if seed is None:
@@ -183,19 +382,24 @@ class DataModel(BaseModel):
         t = KDTree(m)
         self.t = t
 
+
     def __repr__(self) -> 'str':
         return '<{}{} DataModel>'.format(self, self.fmt)
+
 
     def __len__(self) -> 'int':
         return len(self.resi)
 
+
     def get_seq(self, repr2Exist:'bool'=True) -> 'str':
 
         if repr2Exist:
+
             seq = ''.join(
                 [b if len(b) == 1 else 'M' 
                 for b in self.i.get_level_values(2)]
             )
+
         else:
             seq = ''.join(
                 [b if len(b) == 1 else 'M' 
@@ -203,6 +407,7 @@ class DataModel(BaseModel):
             )
 
         return seq
+
 
     def get_d0(self) -> 'float':
 
@@ -234,50 +439,43 @@ class DataModel(BaseModel):
 class ARTEMIS:
 
     def __init__(self,
-                 r:'str', rformat:'str',
-                 rres:'str', rresneg:'str|None', rseed:'str|None',
-                 q:'str', qformat:'str',
-                 qres:'str', qresneg:'str|None', qseed:'str|None',
-                 matchrange:'float|None', threads:'int|None',
-                 nlargest:'int|None', shift:'float|None', stepdiv:'int|None',
-                 saveto:'str|None', saveformat:'str', saveres:'str', 
-                 verbose:'bool', permutation:'bool',
-                 repr1:'dict', repr2:'dict',
+                 r:'DataModel|dict', q:'DataModel|dict', 
+                 matchrange:'float'=3.5, threads:'int'=mp.cpu_count(),
+                 nlargest:'int|None'=None, shift:'float|None'=None, stepdiv:'int|None'=None,
                  ) -> 'None':
 
-        self.tic = dt.now()
-
-        self.saveto     = saveto
-        self.saveformat = saveformat
-        self.saveres    = saveres
-
-        self.verbose = verbose
-        self.permutation = permutation
-
-        if matchrange is None:
-            matchrange = 3.5
+        self.tic        = time()
 
         self.matchrange = matchrange
+        self.threads    = threads
 
-        if threads is None:
-            threads = mp.cpu_count()
+        if threads > 1:
+            self.pool = mp.Pool(threads)
+        else:
+            self.pool = None
 
-        self.threads = threads
-        self.pool    = mp.Pool(threads)
 
-        self.r = DataModel(
-            path=r, fmt=rformat,
-            repr1=repr1, repr2=repr2,
-            res=rres, resneg=rresneg, seed=rseed
-        )
+        if isinstance(r, DataModel):
+            self.r = r
 
-        self.q = DataModel(
-            path=q, fmt=qformat,
-            repr1=repr1, repr2=repr2,
-            res=qres, resneg=qresneg, seed=qseed
-        )
+        elif isinstance(r, dict):
+            self.r = DataModel(**r)
+
+        else:
+            raise TypeError('r={}'.format(r))
+
+        if isinstance(q, DataModel):
+            self.q = q
+
+        elif isinstance(q, dict):
+            self.q = DataModel(**q)
+
+        else:
+            raise TypeError('q={}'.format(q))
+
 
         if self.q.L >= 500:
+
             if nlargest is None:
                 nlargest = 2 * threads
 
@@ -302,178 +500,34 @@ class ARTEMIS:
         self.stepdiv  = stepdiv
 
         self.hit = partial(
-            self.Hit,
+            hit,
             rt=self.r.t, qm=self.q.m, matchrange=self.matchrange # type: ignore
         )
 
         self.impose = partial(
-            self.Impose, 
+            impose, 
             rL=self.r.L, qL=self.q.L,
             rd2=self.r.d0 ** 2, qd2=self.q.d0 ** 2
         )
 
         self.align = partial(
-            self.Align,
+            align,
             r=self.r, q=self.q,
             shift=self.shift,
             impose=self.impose
         )
 
-    @staticmethod
-    def Hit(
-        rx:'np.ndarray', qx:'np.ndarray',
-        rt:'KDTree', qm:'np.ndarray',
-        matchrange:'float'
-    ) -> 'dict':
+        self.ans1 = {}
+        self.ans2 = {}
 
-        a, b = transform(rx, qx)
-        qt = KDTree(np.dot(qm, a) + b)
+        self.perm = False
 
-        h = rt.sparse_distance_matrix(
-            qt,
-            max_distance=matchrange,
-            p=2,
-            output_type='dict'
-        )
 
-        return h
-
-    @staticmethod
-    def hitFromAli(ali1:'str', ali2:'str') -> 'np.ndarray':
-
-        i = -1
-        j = -1
-        keys = []
-
-        for c1, c2 in zip(ali1, ali2):
-
-            b1 = c1 != '-'
-            b2 = c2 != '-'
-
-            if b1:
-                i += 1
-            if b2:
-                j += 1
-
-            if b1 and b2:
-                keys.append([i, j])
-
-        return np.array(keys).T
-
-    @staticmethod
-    def Closest(hit:'dict') -> 'np.ndarray':
-        r = set()
-        q = set()
-        k = []
-
-        for i, j in sorted(hit, key=hit.get): # type: ignore
-
-            if i in r or j in q:
-                continue
-
-            else:
-                r.add(i)
-                q.add(j)
-                k.append([i, j])
-
-        h = np.array(k).T
-
-        return h
-
-    @staticmethod
-    def mutuallyClosest(hit:'dict') -> 'np.ndarray':
-        r = {}
-        q = {}
-
-        for i, j in hit:
-
-            if i in r:
-                r[i] += 1
-            else:
-                r[i] = 1
-
-            if j in q:
-                q[j] += 1
-            else:
-                q[j] = 1
-
-        h = np.array([
-            [i, j] for i, j in hit
-            if r[i] == 1 and q[j] == 1
-        ]).T
-
-        return h
-
-    @staticmethod
-    def Impose(
-        rm:'np.ndarray', qm:'np.ndarray',
-        rL:'int', qL:'int',
-        rd2:'float', qd2:'float'
-    ) -> 'dict':
-
-        def diff(a, b) -> 'np.ndarray':
-
-            d:'np.ndarray' = rm - (np.dot(qm, a) + b)
-
-            return (d * d).sum(axis=1)
-
-        def score(d2):
-
-            rTM = (1 / (1 + d2 / rd2)).sum() / rL
-            qTM = (1 / (1 + d2 / qd2)).sum() / qL
-
-            RMSD = np.sqrt(np.sum(d2) / N)
-
-            return (rTM, qTM), RMSD
-
-        def opt(i:'int', j:'int'):
-
-            n = j - i
-
-            if n < 3:
-                return [(None, None), (-1, -1), -1]
-
-            nn = i + n // 2
-
-            t = transform(rm[i:j], qm[i:j])
-            d = diff(*t)
-            s = score(d)
-
-            m = d < qd2
-            c = m.sum()
-
-            if c > 2:
-                tt = transform(rm[m], qm[m])
-                ss = score(diff(*tt))
-
-                if sum(ss[0]) > sum(s[0]):
-                    t = tt
-                    s = ss
-
-            ans = max(
-                [[t, *s], opt(i, nn), opt(nn, j)], 
-                key=lambda x: sum(x[1]) # type: ignore
-            )
-
-            return ans
-
-        N = len(rm)
-        o = opt(0, N)
-
-        ans = {
-            'a'  : o[0][0],
-            'b'  : o[0][1],
-            'rTM': o[1][0],
-            'qTM': o[1][1],
-            'RMSD': o[2]
-        }
-
-        return ans
-
-    def insertNaNBase(self, rAli, qAli, distances):
+    def insertNaNGap(self, rAli, qAli):
 
         r = self.r
         q = self.q
+
         rmsk = r.resi.isin(r.i)
         qmsk = q.resi.isin(q.i)
 
@@ -508,7 +562,6 @@ class ARTEMIS:
             while i < ii:
                 rali.insert(j, i)
                 qali.insert(j, -1)
-                distances.insert(j, ' ')
                 j += 1
                 i += 1
             else:
@@ -525,7 +578,6 @@ class ARTEMIS:
             while i < ii:
                 qali.insert(j, i)
                 rali.insert(j, -1)
-                distances.insert(j, ' ')
                 j += 1
                 i += 1
             else:
@@ -552,77 +604,7 @@ class ARTEMIS:
                     c = 'M'
                 qAli += c
 
-        distances = ''.join(distances)
-
-        return rAli, qAli, distances
-
-    @staticmethod
-    def Align(
-        ri:'np.ndarray', qi:'np.ndarray',
-        r:'DataModel', q:'DataModel',
-        shift:'float',
-        impose:'Callable'
-    ):
-
-        rind = r.i[ri]
-        qind = q.i[qi]
-
-        rrepr1 = r.resrepr1.loc[rind]
-        qrepr1 = q.resrepr1.loc[qind]
-
-        rcar = rrepr1.notna().values
-        qcar = qrepr1.notna().values
-
-        car = rcar & qcar # type: ignore
-
-        rx = np.vstack(rrepr1[car].values) # type: ignore
-        qx = np.vstack(qrepr1[car].values) # type: ignore
-
-        a, b = transform(rx, qx)
-
-        rm = r.m
-        qm = q.m
-
-        dist = cdist(rm, np.dot(qm, a) + b)
-
-        ri, qi = np.where(dist < 8)
-
-        h = ARTEMIS.Closest(dict(zip(zip(ri, qi), dist[ri, qi])))
-        ri, qi = h[:, h[0].argsort()]
-
-        ans1 = impose(rm[ri], qm[qi])
-        ans1['rAli'] = r.i[ri]
-        ans1['qAli'] = q.i[qi]
-
-        scoremat = -dist
-        scoremat -= scoremat.min()
-        scoremat -= min(scoremat[ri, qi]) - shift
-
-        rAli, qAli = globalAlign(r.seq, q.seq, scoremat)
-        h = ARTEMIS.hitFromAli(rAli, qAli)
-
-        if h.size < 6:
-            a = np.eye(3)
-            b = np.zeros(3)
-
-            ans2 = {
-                'a': a,
-                'b': b,
-                'rTM': -1,
-                'qTM': -1,
-                'RMSD': -1,
-                'rAli': rAli,
-                'qAli': qAli,
-            }
-
-        else:
-            ri, qi = h
-
-            ans2 = impose(rm[ri], qm[qi])
-            ans2['rAli'] = rAli
-            ans2['qAli'] = qAli
-
-        return ans1, ans2
+        return rAli, qAli
 
     def get_seed(self):
 
@@ -674,8 +656,7 @@ class ARTEMIS:
             key=len
         )
 
-        h = map(self.mutuallyClosest, h)
-        h = [hh for hh in h if hh.size >= 6]
+        h = [hh.T for hh in h if len(hh) >= 3]
 
         if not h:
             raise Exception(
@@ -689,21 +670,30 @@ class ARTEMIS:
             align = self.align
             ali = [align(hh[0], hh[1]) for hh in h]
 
-        pAns = max(
+        ans1 = max(
             ali,
             key=lambda x: x[0]['rTM'] + x[0]['qTM']
         )[0]
+        rAli, qAli = self.insertNaNGap(ans1['rAli'], ans1['qAli'])
+        ans1['rAli'] = rAli
+        ans1['qAli'] = qAli
 
-        Ans = max(
+        ans2 = max(
             ali,
             key=lambda x: x[1]['rTM'] + x[1]['qTM']
         )[1]
 
-        if (pAns['qTM'] - Ans['qTM']) / abs(Ans['qTM']) >= 0.1:
-            self.permutation = True
+        if (ans2['qTM'] - ans1['qTM']) / abs(ans1['qTM']) >= 0.1:
+            self.perm = True
 
-        self.pAns = pAns
-        self.Ans  = Ans
+        self.ans1 = ans1
+        self.ans2 = ans2
+
+    def get_lifetime(self) -> 'float':
+        toc = time()
+        return toc - self.tic
+
+    lifetime = property(get_lifetime)
 
     def get_config(self):
 
@@ -728,24 +718,21 @@ class ARTEMIS:
             'shift'     : self.shift,
             'stepdiv'   : self.stepdiv,
 
-            'saveto'    : self.saveto if self.saveto  else '',
-            'saveformat': self.saveformat,
-            'saveres'   : self.saveres,
-
             'threads'   : self.threads,
-
-            'verbose'   : self.verbose,
-            'permutation':self.permutation
         }
 
         return config
+
 
     def get_alignment(self) -> 'dict':
 
         r = self.r
         q = self.q
 
-        Ans  = self.Ans
+        ans1  = self.ans1
+        if not ans1:
+            self.run()
+            ans1 = self.ans1
 
         rChain = ', '.join(
             r.resi
@@ -761,8 +748,8 @@ class ARTEMIS:
             .astype(str)
         )
 
-        rAli = Ans['rAli']
-        qAli = Ans['qAli']
+        rAli = ans1['rAli']
+        qAli = ans1['qAli']
 
         aliLength = sum(i != '-' and j != '-' for i, j in zip(rAli, qAli))
 
@@ -771,33 +758,19 @@ class ARTEMIS:
             n_aligned   = aliLength
             Seq_ID = n_identical / n_aligned
 
-            a = Ans['a']
-            b = Ans['b']
 
-            h = self.hitFromAli(rAli, qAli)
-            rm = r.m[h[0]]
-            qm = np.dot(q.m[h[1]], a) + b
-            d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
-
+            table = self.get_distance_1()
             distances = []
-            i = -1
-            j = -1
-            m = -1
+            i = 0
             for k in range(len(rAli)):
-                b1 = rAli[k] != '-'
-                b2 = qAli[k] != '-'
-
-                if b1:
-                    i += 1
-                if b2:
-                    j += 1
-
-                if b1 and b2:
-                    m += 1
-                    if d[m] < 5:
+                if rAli[k] != '-' and qAli[k] != '-':
+                    d = table['dist'][i]
+                    if d < 5:
                         distances.append(':')
                     else:
                         distances.append('.')
+
+                    i += 1
                 else:
                     distances.append(' ')
 
@@ -805,10 +778,8 @@ class ARTEMIS:
             Seq_ID = 0
             distances = [' '] * len(rAli)
 
-        rAli, qAli, distances = (self
-                                 .insertNaNBase(Ans['rAli'], 
-                                                Ans['qAli'], 
-                                                distances))
+        distances = ''.join(distances)
+
 
         alignment = {
             'rName'     : r.path,
@@ -818,11 +789,11 @@ class ARTEMIS:
             'rLength'   : r.L,
             'qLength'   : q.L,
             'aliLength' : aliLength,
-            'RMSD'      : Ans['RMSD'],
+            'RMSD'      : ans1['RMSD'],
             'Seq_ID'    : Seq_ID,
-            'rTMscore'  : Ans['rTM'],
+            'rTMscore'  : ans1['rTM'],
             'r_d0'      : r.d0,
-            'qTMscore'  : Ans['qTM'],
+            'qTMscore'  : ans1['qTM'],
             'q_d0'      : q.d0,
             'rAlignment': rAli,
             'qAlignment': qAli,
@@ -833,15 +804,19 @@ class ARTEMIS:
 
     def get_permutation(self) -> 'dict':
 
-        Ans = self.pAns
+        ans2 = self.ans2
 
-        p_aliLength = len(Ans['rAli'])
-        p_rTMscore  = Ans['rTM']
-        p_qTMscore  = Ans['qTM']
-        p_RMSD      = Ans['RMSD']
+        if not ans2:
+            self.run()
+            ans2 = self.ans2
+
+        p_aliLength = len(ans2['rAli'])
+        p_rTMscore  = ans2['rTM']
+        p_qTMscore  = ans2['qTM']
+        p_RMSD      = ans2['RMSD']
 
         p_n_identical = 0
-        for rc, qc in zip(Ans['rAli'], Ans['qAli']):
+        for rc, qc in zip(ans2['rAli'], ans2['qAli']):
             if rc[2] == qc[2]:
                 p_n_identical += 1
         p_Seq_ID = p_n_identical / p_aliLength
@@ -856,196 +831,187 @@ class ARTEMIS:
 
         return permutation
 
-    def get_adistance(self):
+    def get_distance_1(self) -> 'pd.DataFrame':
 
         r = self.r
         q = self.q
 
-        title = {
-            'rName': r.name,
-            'qName': q.name
-        }
+        ans1  = self.ans1
+        if not ans1:
+            self.run()
+            ans1 = self.ans1
 
-        Ans  = self.Ans
-        rAli = Ans['rAli']
-        qAli = Ans['qAli']
+        rAli = ans1['rAli']
+        qAli = ans1['qAli']
 
         aliLength = sum(i != '-' and j != '-' for i, j in zip(rAli, qAli))
 
-        L1 = len(r.name)
-        L2 = len(q.name)
-
-        rows = []
         if aliLength:
-            a = Ans['a']
-            b = Ans['b']
+            a, b   = ans1['transform']
+            ri, qi = hitFromAli(rAli, qAli)
 
-            h = self.hitFromAli(rAli, qAli)
-            rm = r.m[h[0]]
-            qm = np.dot(q.m[h[1]], a) + b
-            d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
+            ri = r.resi[ri]
+            qi = q.resi[qi]
 
-            for rb, qb, dd in zip(r.i[h[0]], q.i[h[1]], d):
-                rRes = '.'.join(map(str, rb))
-                qRes = '.'.join(map(str, qb))
+            rcoord = np.vstack(r.resrepr2[ri].values) # type: ignore
+            qcoord = np.vstack(q.resrepr2[qi].values) # type: ignore
+            qcoord = np.dot(qcoord, a) + b
 
-                if len(rRes) > L1:
-                    L1 = len(rRes)
-                if len(qRes) > L2:
-                    L2 = len(qRes)
+            d  = np.sqrt(((rcoord - qcoord) ** 2).sum(axis=1))
+            ri = ['.'.join([*map(str, label)]) for label in ri]
+            qi = ['.'.join([*map(str, label)]) for label in qi]
 
-                entity = {
-                    'rRes'  : rRes,
-                    'd'     : dd,
-                    'qRes'  : qRes,
+            table = pd.DataFrame(
+                {
+                    r.name: ri,
+                    'dist': d,
+                    q.name: qi
                 }
-                rows.append(entity)
+            )
 
-            for entity in rows:
-                entity['L1'] = L1
-                entity['L2'] = L2
+        else:
+            table = pd.DataFrame(
+                {
+                    r.name: [],
+                    'dist': [],
+                    q.name: []
+                }
+            )
 
-        title['L1'] = L1 # type: ignore
-        title['L2'] = L2 # type: ignore
-            
-        return title, rows
+        return table
 
-    def get_pdistance(self):
+    def get_distance_2(self) -> 'pd.DataFrame':
 
         r = self.r
         q = self.q
 
-        title = {
-            'rName': r.name,
-            'qName': q.name
-        }
+        ans2 = self.ans2
+        rAli = ans2['rAli']
+        qAli = ans2['qAli']
 
-        pAns  = self.pAns
-        rAli = pAns['rAli']
-        qAli = pAns['qAli']
+        if len(rAli) != 0:
 
-        aliLength = len(rAli)
+            a, b = ans2['transform']
 
-        L1 = len(r.name)
-        L2 = len(q.name)
+            rcoord = np.vstack(r.resrepr2[rAli].values) # type: ignore
+            qcoord = np.vstack(q.resrepr2[qAli].values) # type: ignore
+            qcoord = np.dot(qcoord, a) + b
 
-        rows = []
-        if aliLength:
-            a = pAns['a']
-            b = pAns['b']
+            d  = np.sqrt(((rcoord - qcoord) ** 2).sum(axis=1))
+            ri = ['.'.join([*map(str, label)]) for label in rAli]
+            qi = ['.'.join([*map(str, label)]) for label in qAli]
 
-            rm = np.vstack(r.resrepr2.loc[rAli])
-            qm = np.dot(np.vstack(q.resrepr2.loc[qAli]), a) + b
-            d  = np.sqrt(((rm - qm) ** 2).sum(axis=1))
-
-            for rb, qb, dd in zip(rAli, qAli, d):
-                rRes = '.'.join(map(str, rb))
-                qRes = '.'.join(map(str, qb))
-
-                if len(rRes) > L1:
-                    L1 = len(rRes)
-                if len(qRes) > L2:
-                    L2 = len(qRes)
-
-                entity = {
-                    'rRes'  : rRes,
-                    'd'     : dd,
-                    'qRes'  : qRes,
+            table = pd.DataFrame(
+                {
+                    r.name: ri,
+                    'dist': d,
+                    q.name: qi
                 }
-                rows.append(entity)
+            )
 
-            for entity in rows:
-                entity['L1'] = L1
-                entity['L2'] = L2
-
-        title['L1'] = L1 # type: ignore
-        title['L2'] = L2 # type: ignore
+        else:
+            table = pd.DataFrame(
+                {
+                    r.name: [],
+                    'dist': [],
+                    q.name: []
+                }
+            )
             
-        return title, rows
+        return table
 
     def get_time(self) -> 'dict':
 
-        toc = dt.now()
-        sec = (toc - self.tic).total_seconds()
-
-        time = {
-            'total_time': sec
+        total_time = {
+            'total_time': self.lifetime
         }
 
-        return time
+        return total_time
 
-    def get_ans(self) -> 'str':
+    def show(self, verbose:'bool'=False, permutation:'bool'=False) -> 'str':
 
         index = {
-            'head': HEAD,
-            'alignment': ALIGNMENT.format(**self.get_alignment()),
-            'time': TIME.format(**self.get_time()),
+            'head'      : HEAD,
+            'alignment' : ALIGNMENT.format(**self.get_alignment()),
+            'time'      : TIME.format(total_time=self.lifetime),
         }
 
-        if self.permutation:
+        if verbose:
+            permutation=True
+
+        if permutation:
             index['permutation'] = PERMUTATION.format(**self.get_permutation())
         else:
             index['permutation'] = ''
 
-        if self.verbose:
-            index['config']   = CONFIG.format(**self.get_config())
+        if verbose:
+            index['config']     = CONFIG.format(**self.get_config())
 
-            t, r = self.get_adistance()
-            s = DISTANCE[0].format(**t)
-            rowpat = DISTANCE[1]
-            for rr in r:
-                s += rowpat.format(**rr)
-            index['adistance'] = s
+            index['distance_1'] = '\nDistance table:\n' + (self
+                                                           .get_distance_1()
+                                                           .to_string(
+                                                                index=False,
+                                                                justify='center',
+                                                                float_format='{:.2f}'.format
+                                                            )
+                                                           )
 
-            t, r = self.get_pdistance()
-            s = DISTANCE[0].format(**t)
-            rowpat = DISTANCE[1]
-            for rr in r:
-                s += rowpat.format(**rr)
-            index['pdistance'] = s
+            index['distance_2'] = '\nDistance table:\n' + (self
+                                                           .get_distance_2()
+                                                           .to_string(
+                                                                index=False,
+                                                                justify='center',
+                                                                float_format='{:.2f}'.format
+                                                            ) + '\n'
+                                                           )
 
         else:
-            index['config']   = ''
-            index['adistance'] = ''
-            index['pdistance'] = ''
+            index['config']     = ''
+            index['distance_1'] = ''
+            index['distance_2'] = ''
 
         return INDEX.format(**index)
 
-    def save(self):
-
-        if self.saveto is None:
-            return
-
-        saveto  = self.saveto.strip(os.sep)
-        saveres = self.saveres
-        saveformat = self.saveformat
+    def save(self, 
+             saveto     :'str'='.',
+             saveres    :'str'='',  # type: ignore
+             saveformat :'str'='',
+             perm       :'bool'=False) -> 'None':
 
         r = self.r
         q = self.q
 
-        saveres = getResSpec(q.atom_site, saveres)
+        if not saveres:
+            if isinstance(q.resneg, str):
+                saveres:'str' = q.resneg
+            else:
+                saveres:'str' = q.res
 
-        Ans  = self.Ans
-        pAns = self.pAns
+        if not saveformat:
+            saveformat = q.fmt
+
+        saveresi = getResSpec(q.atom_site, saveres)
+
+        ans1 = self.ans1
+        ans2 = self.ans2
 
         if os.path.isdir(saveto): # type: ignore
             files = set(os.listdir(saveto))
         else:
             files = set()
 
-        rAli = Ans['rAli']
-        qAli = Ans['qAli']
+        rAli = ans1['rAli']
+        qAli = ans2['qAli']
 
-        h  = self.hitFromAli(rAli, qAli)
+        h  = hitFromAli(rAli, qAli)
 
         if h.size:
-            a = Ans['a']
-            b = Ans['b']
+            a, b = ans1['transform']
 
-            qq = deepcopy(q)
+            qq       = q.copy()
             qq.coord = np.dot(qq.coord, a) + b
             qq.atom_site = (qq.atom_site
-                            .set_index(MCBI).loc[saveres]
+                            .set_index(MCBI).loc[saveresi]
                             .reset_index()[q.atom_site.columns])
 
             fname = '{}_to_{}{}'.format(q.name, r.name, saveformat)
@@ -1054,17 +1020,12 @@ class ARTEMIS:
                 fname = '{}_to_{}_({}){}'.format(q.name, r.name, i, saveformat)
                 i += 1
 
-            if saveformat == '.pdb':
-                qq.to_pdb('{}/{}'.format(saveto, fname))
-            else:
+            if saveformat == '.cif':
                 qq.to_cif('{}/{}'.format(saveto, fname))
+            else:
+                qq.to_pdb('{}/{}'.format(saveto, fname))
 
-            rm = self.r.m[h[0]]
-            qm = np.dot(q.m[h[1]], a) + b
-            d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
-
-            ri = self.r.i[h[0]].to_list()
-            qi = self.q.i[h[1]].to_list()
+            table = self.get_distance_1()
 
             fname = '{}_to_{}.tsv'.format(q.name, r.name)
             i = 0
@@ -1072,23 +1033,16 @@ class ARTEMIS:
                 fname = '{}_to_{}_({}).tsv'.format(q.name, r.name, i)
                 i += 1
 
-            text = '{}\tdist\t{}\n'.format(r.name, q.name)
-            for i, (ii, jj) in enumerate(zip(ri, qi)):
-                text += "{}\t{:.2f}\t{}\n".format('.'.join(list(map(str, ii))),
-                                                 d[i],
-                                                 '.'.join(list(map(str, jj))))
+            table.to_csv(saveto + '/' + fname, sep='\t', 
+                         float_format='{:.3f}'.format, index=False)
 
-            with open('{}/{}'.format(saveto, fname), 'w') as file:
-                file.write(text)
-
-        if self.permutation:
-            a = pAns['a']
-            b = pAns['b']
+        if perm:
+            a, b = ans2['transform']
 
             qq = deepcopy(q)
             qq.coord = np.dot(qq.coord, a) + b
             qq.atom_site = (qq.atom_site
-                            .set_index(MCBI).loc[saveres]
+                            .set_index(MCBI).loc[saveresi]
                             .reset_index()[q.atom_site.columns])
 
             fname = '{}_to_{}_p{}'.format(q.name, r.name, saveformat)
@@ -1102,14 +1056,7 @@ class ARTEMIS:
             else:
                 qq.to_cif('{}/{}'.format(saveto, fname))
 
-            ri = pAns['rAli'].to_list()
-            qi = pAns['qAli'].to_list()
-
-            rm = np.vstack(r.resrepr2.loc[ri])
-            qm = np.vstack(q.resrepr2.loc[qi])
-            qm = np.dot(qm, a) + b
-
-            d = np.sqrt(((rm - qm) ** 2).sum(axis=1))
+            table = self.get_distance_2()
 
             fname = '{}_to_{}_p.tsv'.format(q.name, r.name)
             i = 0
@@ -1117,15 +1064,8 @@ class ARTEMIS:
                 fname = '{}_to_{}_p_({}).tsv'.format(q.name, r.name, i)
                 i += 1
 
-            text = '{}\tdist\t{}\n'.format(self.r, self.q)
-            for i, (ii, jj) in enumerate(zip(ri, qi)):
-                text += "{}\t{:.2f}\t{}\n".format('.'.join(list(map(str, ii))),
-                                                 d[i],
-                                                 '.'.join(list(map(str, jj))))
-
-            with open('{}/{}'.format(saveto, fname), 'w') as file:
-                file.write(text)
-
+            table.to_csv(saveto + '/' + fname, sep='\t',
+                         float_format='{:.3f}'.format, index=False)
 
 
 if __name__ == '__main__':
@@ -1136,13 +1076,34 @@ if __name__ == '__main__':
         if 'fork' in mp.get_all_start_methods():
             mp.set_start_method('fork')
 
-    with open(RESREPR1, 'r') as file:
-        repr1 = json.load(file)
-        repr2 = {k:RESREPR2.split() for k in repr1}
+    r = DataModel(
+        path    = args.r,
+        fmt     = args.rformat,
+        res     = args.rres,
+        resneg  = args.rresneg,
+        seed    = args.rseed
+    )
 
-    artemis = ARTEMIS(**dict(args._get_kwargs()), 
-                      repr1=repr1, repr2=repr2)
+    q = DataModel(
+        path    = args.q,
+        fmt     = args.qformat,
+        res     = args.qres,
+        resneg  = args.qresneg,
+        seed    = args.qseed
+    )
+
+    artemis = ARTEMIS(
+        r, q,
+        matchrange=args.matchrange, threads=args.threads,
+        nlargest=args.nlargest, shift=args.shift, stepdiv=args.stepdiv,
+    )
 
     artemis.run()
-    artemis.save()
-    print(artemis.get_ans())
+
+    if args.saveto:
+        artemis.save(saveto     = args.saveto, 
+                     saveformat = args.saveformat,
+                     saveres    = args.saveres,
+                     perm       = artemis.perm or args.permutation)
+
+    print(artemis.show(verbose=args.verbose, permutation=args.permutation or artemis.perm))

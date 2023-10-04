@@ -192,7 +192,7 @@ class BaseModel:
     def __init__(self, path:'str', fmt:'str') -> 'None':
 
         self.path = path
-        self.fmt = fmt
+        self.fmt  = fmt
 
         name, _ = os.path.splitext(path)
         name = name.split(os.sep)[-1]

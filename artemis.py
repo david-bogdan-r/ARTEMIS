@@ -2,7 +2,7 @@ import itertools
 import multiprocessing as mp
 import os
 import sys
-from copy import deepcopy
+
 from functools import partial
 from heapq import nlargest
 from time import time
@@ -1043,7 +1043,7 @@ class ARTEMIS:
         if permutation:
             a, b = ans2['transform']
 
-            qq = deepcopy(q)
+            qq = q.copy()
             qq.coord = np.dot(qq.coord, a) + b
             qq.atom_site = (qq.atom_site
                             .set_index(MCBI).loc[saveresi]

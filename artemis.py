@@ -798,8 +798,9 @@ class ARTEMIS:
             'qTMscore'  : ans1['qTM'],
             'q_d0'      : q.d0,
             'rAlignment': rAli,
+            'distances' : distances,
             'qAlignment': qAli,
-            'distances' : distances
+            'transform' : ans1['transform']
         }
 
         return alignment
@@ -828,7 +829,8 @@ class ARTEMIS:
             'p_rTMscore'    : p_rTMscore,
             'p_qTMscore'    : p_qTMscore,
             'p_RMSD'        : p_RMSD,
-            'p_Seq_ID'      : p_Seq_ID
+            'p_Seq_ID'      : p_Seq_ID,
+            'transform'     : ans2['transform']
         }
 
         return permutation

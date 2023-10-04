@@ -1,5 +1,4 @@
 import itertools
-import json
 import multiprocessing as mp
 import os
 import sys
@@ -14,12 +13,15 @@ import pandas as pd
 from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 
-
-from src.argparse import argParse
 from src.Kabsch import transform
 from src.NW import globalAlign
 from src.PDBio import BaseModel, getResSpec
 from src.resrepr import resrepr, load_resrepr
+
+try:
+    TERMINAL_WIDTH = os.get_terminal_size()[0]
+except:
+    TERMINAL_WIDTH = 79
 
 SEEDPOOL = 100_000
 
@@ -39,13 +41,12 @@ MCBI = [
     'auth_comp_id',
     'auth_seq_id'
 ]
-# CRDN  = ['Cartn_x', 'Cartn_y', 'Cartn_z']
 
 INDEX = '{head}{config}{alignment}{distance_1}{permutation}{distance_2}{time}'
 
 HEAD  = '''
  ********************************************************************
- * ARTEMIS (Version 20230828)                                       *
+ * ARTEMIS (Version 20231004)                                       *
  * using ARTEM to Infer Sequence alignment                          *
  * Reference: TODO                                                  *
  * Please email comments and suggestions to dbohdan@iimcb.gov.pl    *
@@ -73,8 +74,7 @@ shift={shift}
 stepdiv={stepdiv}
 
 threads={threads}
-_____________________________________________________________________
-'''
+''' + '_'*TERMINAL_WIDTH + '\n'
 
 ALIGNMENT = '''
 Name of structure r: {rName}:{rChain}
@@ -92,8 +92,8 @@ TM-score= {qTMscore:6.5f} (normalized by length of structure q: L={qLength}, d0=
 {qAlignment}
 '''
 
-PERMUTATION = '''
-_____________________________________________________________________
+PERMUTATION = '\n' + '_'*TERMINAL_WIDTH + '''
+
 Alignment with permutations:
 
 Aligned length= {p_aliLength}
@@ -321,7 +321,8 @@ class DataModel(BaseModel):
         self.set_res(res, resneg, seed)
 
 
-    def set_res(self, res:'str'='#1', resneg:'str|None'=None, seed:'str|None'=None)->'None':
+    def set_res(self, res:'str'='#1', resneg:'str|None'=None, 
+                seed:'str|None'=None)->'None':
 
         self.res    = res
         self.resneg = resneg
@@ -441,7 +442,8 @@ class ARTEMIS:
     def __init__(self,
                  r:'DataModel|dict', q:'DataModel|dict', 
                  matchrange:'float'=3.5, threads:'int'=mp.cpu_count(),
-                 nlargest:'int|None'=None, shift:'float|None'=None, stepdiv:'int|None'=None,
+                 nlargest:'int|None'=None, shift:'float|None'=None, 
+                 stepdiv:'int|None'=None,
                  ) -> 'None':
 
         self.tic        = time()
@@ -947,23 +949,25 @@ class ARTEMIS:
         if verbose:
             index['config']     = CONFIG.format(**self.get_config())
 
-            index['distance_1'] = '\nDistance table:\n' + (self
-                                                           .get_distance_1()
-                                                           .to_string(
-                                                                index=False,
-                                                                justify='center',
-                                                                float_format='{:.2f}'.format
-                                                            )
-                                                           )
+            index['distance_1'] = '\nDistance table:\n\n'\
+                + (self
+                   .get_distance_1()
+                   .to_string(
+                       index=False,
+                       justify='center',
+                       float_format='{:.2f}'.format
+                       )
+                   )
 
-            index['distance_2'] = '\nDistance table:\n' + (self
-                                                           .get_distance_2()
-                                                           .to_string(
-                                                                index=False,
-                                                                justify='center',
-                                                                float_format='{:.2f}'.format
-                                                            ) + '\n'
-                                                           )
+            index['distance_2'] = '\nDistance table:\n\n'\
+                + (self
+                   .get_distance_2()
+                   .to_string(
+                       index=False,
+                       justify='center',
+                       float_format='{:.2f}'.format
+                       ) + '\n'
+                   )
 
         else:
             index['config']     = ''
@@ -976,7 +980,7 @@ class ARTEMIS:
              saveto     :'str'='.',
              saveres    :'str'='',  # type: ignore
              saveformat :'str'='',
-             perm       :'bool'=False) -> 'None':
+             permutation:'bool'=False) -> 'None':
 
         r = self.r
         q = self.q
@@ -1036,7 +1040,7 @@ class ARTEMIS:
             table.to_csv(saveto + '/' + fname, sep='\t', 
                          float_format='{:.3f}'.format, index=False)
 
-        if perm:
+        if permutation:
             a, b = ans2['transform']
 
             qq = deepcopy(q)
@@ -1048,7 +1052,8 @@ class ARTEMIS:
             fname = '{}_to_{}_p{}'.format(q.name, r.name, saveformat)
             i = 0
             while fname in files:
-                fname = '{}_to_{}_p_({}){}'.format(q.name, r.name, i, saveformat)
+                fname = ('{}_to_{}_p_({}){}'
+                         .format(q.name, r.name, i, saveformat))
                 i += 1
 
             if saveformat == '.pdb':
@@ -1069,6 +1074,8 @@ class ARTEMIS:
 
 
 if __name__ == '__main__':
+
+    from src.argparse import argParse
 
     args = argParse(sys.argv[1:])
 
@@ -1104,6 +1111,7 @@ if __name__ == '__main__':
         artemis.save(saveto     = args.saveto, 
                      saveformat = args.saveformat,
                      saveres    = args.saveres,
-                     perm       = artemis.perm or args.permutation)
+                     permutation= artemis.perm or args.permutation)
 
-    print(artemis.show(verbose=args.verbose, permutation=args.permutation or artemis.perm))
+    print(artemis.show(verbose=args.verbose, 
+                       permutation=args.permutation or artemis.perm))

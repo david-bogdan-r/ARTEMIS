@@ -92,9 +92,9 @@ def threads(val):
 parser = argparse.ArgumentParser(
     prog='ARTEMIS',
     description='''
-    ARTEMIS (Using ARTEM to Infer Sequence alignment) - is a tool 
-    for the RNA 3D structure superposition and determination of
-    the structure-based sequence alignment.
+    ARTEMIS (Using ARTEM to Infer Sequence alignment) 
+    - is a tool for the RNA 3D structure superposition
+    and determination of the structure-based sequence alignment.
     ''',
     add_help=False,
     usage= '''
@@ -262,7 +262,8 @@ parser.add_argument(
     required=False,
     type=int,
     help='''
-    (default: nlargest=(length of QUERY) if length of QUERY less than 500nt else nlargest=2*THREADS)
+    (default: nlargest=(length of QUERY) if length of QUERY
+    less than 500nt else nlargest=2*THREADS)
     Number of largest mutually closest residue sets for which 
     alignments are constructed.
     '''

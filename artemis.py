@@ -24,8 +24,8 @@ SEEDPOOL = 100_000
 BASEDIR  = os.path.dirname(__file__)
 
 RESREPRSOURCE = [
-    BASEDIR + '/src/resrepr/artemis_1.json', # 3-atom representation of residues
-    BASEDIR + '/src/resrepr/artemis_2.json', # C3'-atom representation of residues
+    os.path.join(BASEDIR, 'src/resrepr/artemis_1.json'), # 3-atom representation of residues
+    os.path.join(BASEDIR, 'src/resrepr/artemis_2.json'), # C3'-atom representation of residues
 ]
 RESREPR      = [partial(resrepr, **d)
                 for d in load_resrepr(*RESREPRSOURCE)]
@@ -40,7 +40,10 @@ MCBI = [
 
 INDEX = '{head}{config}{alignment}{distance_1}{permutation}{distance_2}{time}'
 
-TERMINAL_WIDTH = os.get_terminal_size()[0] if __name__ == '__main__' else 79
+try:
+    TERMINAL_WIDTH = os.get_terminal_size()[0]
+except:
+    TERMINAL_WIDTH = 79
 
 HEAD  = '''
  ********************************************************************

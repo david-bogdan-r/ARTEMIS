@@ -2,6 +2,11 @@ import argparse
 import os
 import multiprocessing as mp
 
+try:
+    TERMINAL_WIDTH = os.get_terminal_size()[0]
+except:
+    TERMINAL_WIDTH = 79
+
 def argParse(args):
     args = unify(args)
     args = parser.parse_args(args)
@@ -101,7 +106,8 @@ parser = argparse.ArgumentParser(
     python3 artemis.py -r FILENAME -q FILENAME [OPTIONS]
     python3 artemis.py r=FILENAME q=FILENAME [OPTIONS]
     ''',
-    epilog= '*'*os.get_terminal_size()[0] + '\n' + '''
+
+    epilog= '*'*TERMINAL_WIDTH + '\n' + '''
 
     ARTEMIS uses a ChimeraX-like format to specify the residues of interest 
     using the "res" parameters:

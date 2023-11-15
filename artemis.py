@@ -19,7 +19,8 @@ from src.PDBio import BaseModel, getResSpec
 from src.resrepr import load_resrepr, resrepr
 
 
-SEEDPOOL = 100_000
+SEEDPOOL    = 100_000
+PMATCHRANGE = 8
 
 BASEDIR  = os.path.dirname(__file__)
 
@@ -257,7 +258,7 @@ def align(
 
     dist = cdist(rm, np.dot(qm, a) + b)
 
-    ri, qi = np.where(dist < 8)
+    ri, qi = np.where(dist < PMATCHRANGE)
 
     h = mutuallyClosestHit(
         dict(zip(zip(ri, qi), dist[ri, qi]))
@@ -269,9 +270,12 @@ def align(
     ans2['rAli'] = r.i[ri]
     ans2['qAli'] = q.i[qi]
 
-    scoremat  = -dist
-    scoremat -= scoremat.min()
-    scoremat -= min(scoremat[ri, qi]) - shift
+    # scoremat  = -dist
+    # scoremat -= scoremat.min()
+    # scoremat -= min(scoremat[ri, qi]) - shift
+
+    _shift   = max(dist[ri, qi]) + shift
+    scoremat = -(dist - _shift)
 
     rAli, qAli = globalAlign(r.seq, q.seq, scoremat)
     h = hitFromAli(rAli, qAli)

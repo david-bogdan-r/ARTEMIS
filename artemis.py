@@ -10,6 +10,7 @@ from typing import Callable, Iterable
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 
@@ -1056,6 +1057,28 @@ class ARTEMIS:
             table.to_csv(saveto + '/' + fname, sep='\t', 
                          float_format='{:.3f}'.format, index=False)
 
+
+            fname =  '{}_to_{}.png'.format(q.name, r.name)
+            i = 0
+            while fname in files:
+                fname = '{}_to_{}_({}).png'.format(q.name, r.name, i)
+                i += 1
+            fig = plt.figure(figsize=(10, 10))
+            amat = np.zeros((r.L, q.L), dtype=int)
+            amat[h[0], h[1]] = 1
+            ax = fig.add_subplot()
+            ax.pcolor(amat, cmap='gray_r')
+            fig.gca().invert_yaxis()
+            ax.tick_params(
+                top=True, 
+                labeltop=True, 
+                bottom=False, 
+                labelbottom=False
+            )
+            ax.set_title(q.name, fontsize=18)
+            ax.set_ylabel(r.name, fontsize=18)
+            fig.savefig(saveto + '/' + fname, dpi=500, bbox_inches='tight')
+
         if permutation:
             a, b = ans2['transform']
 
@@ -1065,10 +1088,10 @@ class ARTEMIS:
                             .set_index(MCBI).loc[saveresi]
                             .reset_index()[q.atom_site.columns])
 
-            fname = '{}_to_{}_p{}'.format(q.name, r.name, saveformat)
+            fname = '{}_to_{}_ti{}'.format(q.name, r.name, saveformat)
             i = 0
             while fname in files:
-                fname = ('{}_to_{}_p_({}){}'
+                fname = ('{}_to_{}_ti_({}){}'
                          .format(q.name, r.name, i, saveformat))
                 i += 1
 
@@ -1079,14 +1102,43 @@ class ARTEMIS:
 
             table = self.get_distance_2()
 
-            fname = '{}_to_{}_p.tsv'.format(q.name, r.name)
+            fname = '{}_to_{}_ti.tsv'.format(q.name, r.name)
             i = 0
             while fname in files:
-                fname = '{}_to_{}_p_({}).tsv'.format(q.name, r.name, i)
+                fname = '{}_to_{}_ti_({}).tsv'.format(q.name, r.name, i)
                 i += 1
 
             table.to_csv(saveto + '/' + fname, sep='\t',
                          float_format='{:.3f}'.format, index=False)
+
+            fname =  '{}_to_{}_ti.png'.format(q.name, r.name)
+            i = 0
+            while fname in files:
+                fname = '{}_to_{}_ti_({}).png'.format(q.name, r.name, i)
+                i += 1
+            fig = plt.figure(figsize=(10, 10))
+            amat = np.zeros((r.L, q.L), dtype=int)
+            rAli, qAli = self.ans2['rAli'], self.ans2['qAli']
+            lAli = len(rAli)
+            rd = dict(zip(r.i, range(len(r.i))))
+            qd = dict(zip(q.i, range(len(q.i))))
+            ri, qi = [], []
+            for k in range(lAli):
+                ri.append(rd[rAli[k]])
+                qi.append(qd[qAli[k]])
+            amat[ri, qi] = 1
+            ax = fig.add_subplot()
+            ax.pcolor(amat, cmap='gray_r')
+            fig.gca().invert_yaxis()
+            ax.tick_params(
+                top=True, 
+                labeltop=True, 
+                bottom=False, 
+                labelbottom=False
+            )
+            ax.set_title(q.name, fontsize=18)
+            ax.set_ylabel(r.name, fontsize=18)
+            fig.savefig(saveto + '/' + fname, dpi=500, bbox_inches='tight')
 
 
 if __name__ == '__main__':

@@ -63,11 +63,11 @@ def setDefaultFormats(args:'argparse.Namespace'):
         args.permutation = True
 
 
-def isfilepath(path:'str') -> 'str':
-    if os.path.isfile(path):
-        return path
-    else:
-        raise FileNotFoundError(path)
+# def isfilepath(path:'str') -> 'str':
+#     if os.path.isfile(path):
+#         return path
+#     else:
+#         raise FileNotFoundError(path)
 
 def fileformat(fmt:'str'):
     FMT = fmt.strip('.').upper()
@@ -164,7 +164,7 @@ parser.add_argument(
     metavar='REFERENCE',
     dest='r',
     required=True,
-    type=isfilepath,
+    # type=isfilepath,
     help='''
     Path to a reference structure in PDB/mmCIF format. For faster 
     performance, it\'s advised to specify the largest of the two 
@@ -177,7 +177,7 @@ parser.add_argument(
     metavar='QUERY',
     dest='q',
     required=True,
-    type=isfilepath,
+    # type=isfilepath,
     help='''
     Path to a query structure, the one that ARTEMIS superimposes to
     the reference, in PDB/mmCIF format.

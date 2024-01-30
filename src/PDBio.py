@@ -48,10 +48,12 @@ MCBI = [
     'pdbx_PDB_model_num',
     'auth_asym_id',
     'auth_comp_id',
-    'auth_seq_id'
+    'auth_seq_id',
+    'pdbx_PDB_ins_code'
 ]
 CRDN = ['Cartn_x', 'Cartn_y', 'Cartn_z']
 
+URL = 'https://files.rcsb.org/view/{PDB_ID}{fmt}'
 
 def read(path:'str|IOBase') -> 'str':
 
@@ -125,7 +127,7 @@ def as_pdb(text:'str') -> 'pd.DataFrame':
         elif lk == 'MODEL ':
             m = l.split()[1]
 
-    atom_site = pd.DataFrame(a).apply(pd.to_numeric)
+    atom_site = pd.DataFrame(a).apply(pd.to_numeric).fillna('')
     atom_site['auth_asym_id'] = atom_site['auth_asym_id'].astype(str)
 
     return atom_site
@@ -199,9 +201,21 @@ class BaseModel:
 
 
         if fmt == '.cif':
-            atom_site = read_cif(path)
+            if os.path.isfile(path):
+                atom_site = read_cif(path)
+            else:
+                if len(name) == 4:
+                    import requests
+                    url = URL.format(PDB_ID=name.upper(), fmt='.cif')
+                    atom_site = as_cif(requests.get(url).text)
         else:
-            atom_site = read_pdb(path)
+            if os.path.isfile(path):
+                atom_site = read_pdb(path)
+            else:
+                if len(name) == 4:
+                    import requests
+                    url = URL.format(PDB_ID=name.upper(), fmt='.pdb')
+                    atom_site = as_pdb(requests.get(url).text)
 
         self.path = path
         self.name = name
@@ -486,6 +500,7 @@ def specParse(spec:'str') -> 'list':
         base :'str|None'     = ''
         start:'int|None|str' = ''
         end  :'int|None|str' = ''
+        ins_code = ''
 
         resid:'str'          = ''
 
@@ -515,7 +530,7 @@ def specParse(spec:'str') -> 'list':
             model = int(model)
         else:
             if model_is_None:
-                model = None
+                model = 1
 
         if not chain:
             chain = None
@@ -535,6 +550,9 @@ def specParse(spec:'str') -> 'list':
             elif state == 2:
                 end += c
 
+        if not base:
+            base = None
+
         if not end:
             end = None
         else:
@@ -551,21 +569,16 @@ def specParse(spec:'str') -> 'list':
                     else:
                         ch += c
 
-                start = dg
-
-                if not base and end is None:
-                    base  = ch
+                start = int(dg)
+                ins_code = ch
 
             else:
                 start = int(start)
         else:
             start = None
 
-        if not base:
-            base = None
 
-
-        return model, chain, base, start, end
+        return model, chain, base, start, ins_code, end
 
     return [parse(s) for s in spec.split()]
 
@@ -577,7 +590,7 @@ def getResSpec(atom_site:'pd.DataFrame', spec:'str', neg:'bool'=False) -> 'list'
 
     res = res.T
 
-    for m, c, b, s, e in specParse(spec):
+    for m, c, b, s, ins, e in specParse(spec):
 
         cur_msk = np.array([True] * n)
 
@@ -596,6 +609,7 @@ def getResSpec(atom_site:'pd.DataFrame', spec:'str', neg:'bool'=False) -> 'list'
                 cur_msk &= (s <= res[3]) & (res[3] <= e)
             else:
                 cur_msk &= res[3] == s
+                cur_msk &= (res[4] == ins)
 
         msk |= cur_msk
     res = res.T

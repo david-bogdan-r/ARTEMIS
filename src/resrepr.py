@@ -7,7 +7,8 @@ MCBI     = [
     'pdbx_PDB_model_num',
     'auth_asym_id',
     'auth_comp_id',
-    'auth_seq_id'
+    'auth_seq_id',
+    'pdbx_PDB_ins_code'
 ]
 CRDN     = ['Cartn_x', 'Cartn_y', 'Cartn_z']
 DROPCOL  = [
@@ -15,6 +16,7 @@ DROPCOL  = [
     'auth_asym_id',
     'auth_comp_id',
     'auth_seq_id',
+    'pdbx_PDB_ins_code',
     'auth_atom_id'
 ]
 KEEP    = 'last'

@@ -13,10 +13,18 @@ import pandas as pd
 from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 
-from src.Kabsch import transform
-from src.NW import globalAlign
-from src.PDBio import BaseModel, getResSpec
-from src.resrepr import load_resrepr, resrepr
+if __name__ == '__main__':
+    from src.Kabsch import transform
+    from src.NW import globalAlign
+    from src.PDBio import BaseModel, getResSpec
+    from src.resrepr import load_resrepr, resrepr
+    from src.argparse import argParse
+
+else:
+    from .src.Kabsch import transform
+    from .src.NW import globalAlign
+    from .src.PDBio import BaseModel, getResSpec
+    from .src.resrepr import load_resrepr, resrepr
 
 
 SEEDPOOL    = 100_000
@@ -36,7 +44,8 @@ MCBI = [
     'pdbx_PDB_model_num',
     'auth_asym_id',
     'auth_comp_id',
-    'auth_seq_id'
+    'auth_seq_id',
+    'pdbx_PDB_ins_code'
 ]
 
 INDEX = '{head}{config}{alignment}{distance_1}{permutation}{distance_2}{time}'
@@ -1012,7 +1021,7 @@ class ARTEMIS:
             files = set()
 
         rAli = ans1['rAli']
-        qAli = ans2['qAli']
+        qAli = ans1['qAli']
 
         h  = hitFromAli(rAli, qAli)
 
@@ -1081,8 +1090,6 @@ class ARTEMIS:
 
 
 if __name__ == '__main__':
-
-    from src.argparse import argParse
 
     args = argParse(sys.argv[1:])
 

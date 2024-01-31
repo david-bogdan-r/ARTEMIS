@@ -199,7 +199,6 @@ class BaseModel:
         name, _ = os.path.splitext(path)
         name = name.split(os.sep)[-1]
 
-
         if fmt == '.cif':
             if os.path.isfile(path):
                 atom_site = read_cif(path)
@@ -208,6 +207,8 @@ class BaseModel:
                     import requests
                     url = URL.format(PDB_ID=name.upper(), fmt='.cif')
                     atom_site = as_cif(requests.get(url).text)
+                else:
+                    raise ValueError(f"path={path} it's not a local file or PDB ID [4 letter code]")
         else:
             if os.path.isfile(path):
                 atom_site = read_pdb(path)
@@ -216,6 +217,8 @@ class BaseModel:
                     import requests
                     url = URL.format(PDB_ID=name.upper(), fmt='.pdb')
                     atom_site = as_pdb(requests.get(url).text)
+                else:
+                    raise ValueError(f"path={path} it's not a local file or PDB ID [4 letter code]")
 
         self.path = path
         self.name = name
@@ -265,6 +268,7 @@ class BaseModel:
                 },
                 inplace=True
             )
+            atom_site.replace('', '?', inplace=True)
 
             prea = 'auth_'
             prel = 'label_'
@@ -305,6 +309,18 @@ class BaseModel:
                 ]
             ]
 
+            label_seq_id = atom_site[[
+                'pdbx_PDB_model_num',
+                'auth_asym_id', 
+                'auth_comp_id',
+                'auth_seq_id',
+                'pdbx_PDB_ins_code'
+            ]].astype(str).apply(lambda x: '.'.join(x), axis=1)
+            res_id = label_seq_id.unique()
+            replace = dict(zip(res_id, range(len(res_id))))
+            label_seq_id.replace(replace, inplace=True)
+            atom_site['label_seq_id'] = label_seq_id
+
         return atom_site
 
     def get_pdb_atom_site(self) -> 'pd.DataFrame':
@@ -339,10 +355,13 @@ class BaseModel:
         for col in atom_site.columns:
             text += '_atom_site.{} \n'.format(col)
 
-        for al in atom_site.astype(str).values:
-            text += ' '.join(al) + '\n'
-
-        text += '# \n'
+        colen = atom_site.apply(lambda x: max(x.astype(str).map(len))) + 1
+        line_format = ''
+        for col, l in colen.items():
+            line_format += '{' + f'{col}:<{l}' + '}'
+        text += '\n'.join(map(lambda x: line_format.format(**x[1]),
+                              atom_site.iterrows()))
+        text += '\n# \n'
 
         return text
 

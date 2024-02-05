@@ -897,6 +897,9 @@ class ARTEMIS:
                 }
             )
 
+        table[r.name] = table[r.name].str.rstrip('?')
+        table[q.name] = table[q.name].str.rstrip('?')
+
         return table
 
     def get_distance_2(self) -> 'pd.DataFrame':
@@ -936,7 +939,10 @@ class ARTEMIS:
                     q.name: []
                 }
             )
-            
+
+        table[r.name] = table[r.name].str.rstrip('?')
+        table[q.name] = table[q.name].str.rstrip('?')
+
         return table
 
     def get_time(self) -> 'dict':

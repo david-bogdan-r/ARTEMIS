@@ -175,6 +175,7 @@ def read_pdb(path:'str|IOBase') -> 'pd.DataFrame':
                             'Check that the specified file format is correct.'
                             .format(path))
 
+
     return atom_site
 
 
@@ -338,6 +339,17 @@ class BaseModel:
                 if cola not in atom_site.columns:
                     coll = prel + col
                     atom_site[cola] = atom_site[coll]
+
+            cols = [
+                'occupancy',
+                'B_iso_or_equiv',
+                'type_symbol',
+                'pdbx_formal_charge',
+                'pdbx_PDB_model_num'
+            ]
+            for col in cols:
+                if col not in atom_site.columns:
+                    atom_site[col] = ''
 
         return atom_site
 

@@ -29,8 +29,8 @@ PDBFORMAT = {
         '{Cartn_x:>8.3f}',
         '{Cartn_y:>8.3f}',
         '{Cartn_z:>8.3f}',
-        '{occupancy:>6.2f}',
-        '{B_iso_or_equiv:>6.2f}          ',
+        '{occupancy:>6}',
+        '{B_iso_or_equiv:>6}          ',
         '{type_symbol:>2}',
         '{pdbx_formal_charge:>2}\n'
     ]),
@@ -413,6 +413,15 @@ class BaseModel:
             for i in chain_names.items():
                 text += PDBFORMAT['REMARK'].format(*i)
 
+
+        if atom_site['occupancy'].dtype == float:
+            atom_site['occupancy'] = atom_site['occupancy'].apply(
+                lambda x: '{:.2f}'.format(x)
+            )
+        if atom_site['B_iso_or_equiv'].dtype == float:
+            atom_site['B_iso_or_equiv'] = atom_site['B_iso_or_equiv'].apply(
+                lambda x: '{:.2f}'.format(x)
+            )
         records = atom_site.to_dict('records')
         a0 = records[0]
         m0 = a0['pdbx_PDB_model_num']

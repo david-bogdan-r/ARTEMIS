@@ -608,7 +608,10 @@ class ARTEMIS:
             else:
                 c = r.resi[i][2]
                 if len(c) > 1:
-                    c = 'M'
+                    if c in {'DA', 'DG', 'DC', 'DT'}:
+                        c = c[-1]
+                    else:
+                        c = 'M'
                 rAli += c
 
         qAli = ''
@@ -618,7 +621,10 @@ class ARTEMIS:
             else:
                 c = q.resi[i][2]
                 if len(c) > 1:
-                    c = 'M'
+                    if c in {'DA', 'DG', 'DC', 'DT'}:
+                        c = c[-1]
+                    else:
+                        c = 'M'
                 qAli += c
 
         return rAli, qAli
@@ -865,6 +871,12 @@ class ARTEMIS:
 
         aliLength = sum(i != '-' and j != '-' for i, j in zip(rAli, qAli))
 
+        rname = r.name
+        qname = q.name
+        if rname == qname:
+                rname += '_reference'
+                qname += '_query'
+
         if aliLength:
             a, b   = ans1['transform']
             ri, qi = hitFromAli(rAli, qAli)
@@ -882,23 +894,23 @@ class ARTEMIS:
 
             table = pd.DataFrame(
                 {
-                    r.name: ri,
+                    rname: ri,
                     'dist': d,
-                    q.name: qi
+                    qname: qi
                 }
             )
 
         else:
             table = pd.DataFrame(
                 {
-                    r.name: [],
+                    rname: [],
                     'dist': [],
-                    q.name: []
+                    qname: []
                 }
             )
 
-        table[r.name] = table[r.name].str.rstrip('?')
-        table[q.name] = table[q.name].str.rstrip('?')
+        table[rname] = table[rname].str.rstrip('?')
+        table[qname] = table[qname].str.rstrip('?')
 
         return table
 
@@ -910,6 +922,12 @@ class ARTEMIS:
         ans2 = self.ans2
         rAli = ans2['rAli']
         qAli = ans2['qAli']
+
+        rname = r.name
+        qname = q.name
+        if rname == qname:
+                rname += '_reference'
+                qname += '_query'
 
         if len(rAli) != 0:
 
@@ -925,23 +943,23 @@ class ARTEMIS:
 
             table = pd.DataFrame(
                 {
-                    r.name: ri,
+                    rname: ri,
                     'dist': d,
-                    q.name: qi
+                    qname: qi
                 }
             )
 
         else:
             table = pd.DataFrame(
                 {
-                    r.name: [],
+                    rname: [],
                     'dist': [],
-                    q.name: []
+                    qname: []
                 }
             )
 
-        table[r.name] = table[r.name].str.rstrip('?')
-        table[q.name] = table[q.name].str.rstrip('?')
+        table[rname] = table[rname].str.rstrip('?')
+        table[qname] = table[qname].str.rstrip('?')
 
         return table
 

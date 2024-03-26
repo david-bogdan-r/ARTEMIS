@@ -1,0 +1,88 @@
+
+ ********************************************************************
+ * US-align (Version 20220924)                                      *
+ * Universal Structure Alignment of Proteins and Nucleic Acids      *
+ * Reference: C Zhang, M Shine, AM Pyle, Y Zhang. (2022) Nat Methods*
+ * Please email comments and suggestions to zhang@zhanggroup.org    *
+ ********************************************************************
+
+Name of Structure_1: 1ivsC_trna.pdb:C (to be superimposed onto Structure_2)
+Name of Structure_2: rclick/RC_3addC_to_1ivsC.pdb:C
+Length of Structure_1: 75 residues
+Length of Structure_2: 88 residues
+
+Aligned length= 61, RMSD=   3.01, Seq_ID=n_identical/n_aligned= 0.623
+TM-score= 0.47732 (normalized by length of Structure_1: L=75, d0=2.68)
+TM-score= 0.44492 (normalized by length of Structure_2: L=88, d0=3.11)
+(You should use TM-score normalized by length of the reference structure)
+
+(":" denotes residue pairs of d < 5.0 Angstrom, "." denotes other aligned residues)
+-gggcggcguagcucagcga-a-gagcgcu-c--gcga-gag----------------ucuagguc-aaguccuacgccgccccc---gcucacacgcguaa
+ ::::::::::::::::::: : ::::::: .  :.:: :::                ..:::::: ::::::::::::::::::                 
+ggccgccgccaccggggugguccccgggccggacgauccggcgcgccccgaguggggcgcgggguucaauuccccgcggcggccgcca--------------
+
+###############	###############	#########
+#Aligned atom 1	Aligned atom 2 	Distance#
+ C3'   G C 901 	 C3'   G C   2 	    2.503
+ C3'   G C 902 	 C3'   C C   3 	    1.777
+ C3'   G C 903 	 C3'   C C   4 	    2.081
+ C3'   C C 904 	 C3'   G C   5 	    2.185
+ C3'   G C 905 	 C3'   C C   5A	    2.544
+ C3'   G C 906 	 C3'   C C   5B	    2.699
+ C3'   C C 907 	 C3'   G C   6 	    2.359
+ C3'   G C 948 	 C3'   C C   7 	    2.416
+ C3'   U C 908 	 C3'   C C   8 	    2.785
+ C3'   A C 909 	 C3'   A C   9 	    4.164
+ C3'   G C 910 	 C3'   C C  10 	    2.181
+ C3'   C C 911 	 C3'   C C  11 	    2.047
+ C3'   U C 912 	 C3'   G C  12 	    1.898
+ C3'   C C 913 	 C3'   G C  13 	    1.402
+ C3'   A C 914 	 C3'   G C  14 	    0.915
+ C3'   G C 915 	 C3'   G C  15 	    1.507
+ C3'   C C 916 	 C3'   U C  16 	    4.083
+ C3'   G C 917 	 C3'   G C  18 	    3.498
+ C3'   A C 919 	 C3'   G C  19 	    2.464
+ C3'   A C 920 	 C3'   C C  20A	    2.320
+ C3'   G C 921 	 C3'   C C  22 	    3.369
+ C3'   A C 922 	 C3'   C C  23 	    2.294
+ C3'   G C 923 	 C3'   G C  24 	    0.822
+ C3'   C C 924 	 C3'   G C  25 	    0.486
+ C3'   G C 925 	 C3'   G C  26 	    0.948
+ C3'   C C 926 	 C3'   C C  27 	    2.109
+ C3'   U C 927 	 C3'   C C  28 	    4.979
+ C3'   C C 928 	 C3'   G C  30 	    8.115
+ C3'   G C 929 	 C3'   G C  37 	    3.573
+ C3'   C C 930 	 C3'   A C  38 	    5.304
+ C3'   G C 940 	 C3'   U C  39 	    4.823
+ C3'   A C 941 	 C3'   C C  40 	    2.767
+ C3'   G C 942 	 C3'   G C  42 	    3.292
+ C3'   A C 943 	 C3'   G C  43 	    2.318
+ C3'   G C 944 	 C3'   C C  44 	    2.478
+ C3'   U C 946 	 C3'   G C  47N	    6.308
+ C3'   C C 947 	 C3'   C C  48 	    7.720
+ C3'   U C 949 	 C3'   G C  50 	    1.405
+ C3'   A C 950 	 C3'   G C  51 	    1.020
+ C3'   G C 951 	 C3'   G C  52 	    0.778
+ C3'   G C 952 	 C3'   G C  53 	    1.005
+ C3'   U C 953 	 C3'   U C  54 	    2.318
+ C3'   C C 955 	 C3'   U C  55 	    2.388
+ C3'   A C 956 	 C3'   A C  57 	    4.436
+ C3'   A C 957 	 C3'   A C  58 	    2.819
+ C3'   G C 958 	 C3'   U C  59 	    1.805
+ C3'   U C 959 	 C3'   U C  60 	    1.648
+ C3'   C C 960 	 C3'   C C  61 	    1.146
+ C3'   C C 961 	 C3'   C C  62 	    0.974
+ C3'   U C 962 	 C3'   C C  63 	    0.306
+ C3'   A C 963 	 C3'   C C  64 	    0.972
+ C3'   C C 964 	 C3'   G C  66 	    0.869
+ C3'   G C 965 	 C3'   C C  67 	    0.403
+ C3'   C C 966 	 C3'   G C  67A	    1.406
+ C3'   C C 967 	 C3'   G C  67B	    2.275
+ C3'   G C 968 	 C3'   C C  68 	    2.400
+ C3'   C C 969 	 C3'   G C  69 	    1.405
+ C3'   C C 970 	 C3'   G C  70 	    1.749
+ C3'   C C 971 	 C3'   C C  71 	    3.987
+ C3'   C C 973 	 C3'   C C  72 	    4.508
+ C3'   C C 974 	 C3'   G C  73 	    3.369
+###############	###############	#########
+#Total CPU time is  0.00 seconds

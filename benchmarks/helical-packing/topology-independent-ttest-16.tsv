@@ -1,0 +1,7 @@
+                	ARTEMIS  	Best competitor 	Rclick   	RNAhugs GEOS 	US-align 	RNAhugs GENS
+ARTEMIS         	*        	2.38E-03        	6.78E-29 	4.00E-26     	1.94E-30 	8.42E-65
+Best competitor 	2.38E-03 	*               	1.62E-25 	8.59E-25     	6.16E-31 	2.28E-61
+Rclick          	6.78E-29 	1.62E-25        	*        	4.95E-02     	4.54E-12 	2.12E-54
+RNAhugs GEOS    	4.00E-26 	8.59E-25        	4.95E-02 	*            	2.09E-07 	5.61E-52
+US-align        	1.94E-30 	6.16E-31        	4.54E-12 	2.09E-07     	*        	3.72E-43
+RNAhugs GENS    	8.42E-65 	2.28E-61        	2.12E-54 	5.61E-52     	3.72E-43 	*

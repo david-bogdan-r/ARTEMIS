@@ -1,0 +1,34 @@
+
+ ********************************************************************
+ * ARTEMIS (Version 20231004)                                       *
+ * using ARTEM to Infer Sequence alignment                          *
+ * Reference: TODO                                                  *
+ * Please email comments and suggestions to dbohdan@iimcb.gov.pl    *
+ ********************************************************************
+
+Name of structure r: 1ivsC_trna.pdb:C
+Name of structure q: 4p5jA_viraltrnalike.pdb:A (to be superimposed onto structure r)
+Length of structure r: 75 residues
+Length of structure q: 83 residues
+
+Aligned length= 58, RMSD=   3.47, Seq_ID=n_identical/n_aligned= 0.534
+TM-score= 0.42135 (normalized by length of structure r: L=75, d0=2.68)
+TM-score= 0.40612 (normalized by length of structure q: L=83, d0=2.95)
+
+(":" denotes residue pairs of d < 5.0 Angstrom, "." denotes other aligned residues)
+GGGCGGCUAGCUCAGCGG---AAGAGCGCUCGCC----UCACACGCGAGAGGUCGUAGGUUCAAGUCCUACGCC---------------G-CCC--ACCA
+        .::::::.:.   .:::::::::::.        .::::::::::. :::::::::::::::::::               : ::.      
+--------AGCUCGCCAGUUAGCGAGGUCUGUCUCGAC----ACGACAGAUAAU-CGGGUGCAACUCCCGCCCCUCUUCCGAGGGUCAUCGGAACC----
+
+_______________________________________________________________________________
+
+Alignment with permutations:
+
+Aligned length= 63
+TM-score= 0.46811 (normalized by length of structure r)
+TM-score= 0.45025 (normalized by length of structure q)
+RMSD=   3.19
+Seq_ID=n_identical/n_aligned= 0.460
+
+#Total CPU time is  1.81 seconds
+

@@ -1,0 +1,95 @@
+
+ ********************************************************************
+ * US-align (Version 20220924)                                      *
+ * Universal Structure Alignment of Proteins and Nucleic Acids      *
+ * Reference: C Zhang, M Shine, AM Pyle, Y Zhang. (2022) Nat Methods*
+ * Please email comments and suggestions to zhang@zhanggroup.org    *
+ ********************************************************************
+
+Name of Structure_1: ../1ivsC_trna.pdb:C (to be superimposed onto Structure_2)
+Name of Structure_2: GENS_6cu1A_to_1ivsC.pdb:A
+Length of Structure_1: 75 residues
+Length of Structure_2: 79 residues
+
+Aligned length= 68, RMSD=   2.45, Seq_ID=n_identical/n_aligned= 0.912
+TM-score= 0.55628 (normalized by length of Structure_1: L=75, d0=2.68)
+TM-score= 0.54600 (normalized by length of Structure_2: L=79, d0=2.82)
+(You should use TM-score normalized by length of the reference structure)
+
+(":" denotes residue pairs of d < 5.0 Angstrom, "." denotes other aligned residues)
+------agcgagaggucguagguucaaguccuacgccgcccacgggcggcuagcucagcggaagagcgcucgcc-----ucaccca
+      ::::::::::::::::::::::::::::::::::::.:::::::::::::::::::::::::::::::            
+gguggcucacauuuguugcggguucgagacccgucagagcgaaagcucuguagcucaaugguagagcgguguagucacc-------
+
+###############	###############	#########
+#Aligned atom 1	Aligned atom 2 	Distance#
+ C3'   A C 936 	 C3'   U A   8 	    3.539
+ C3'   G C 938 	 C3'   C A   9 	    3.241
+ C3'   C C 939 	 C3'   A A  11 	    3.849
+ C3'   G C 940 	 C3'   C A  12 	    2.149
+ C3'   A C 941 	 C3'   A A  13 	    1.657
+ C3'   G C 942 	 C3'   U A  14 	    1.373
+ C3'   A C 943 	 C3'   U A  15 	    2.519
+ C3'   G C 944 	 C3'   U A  16 	    3.531
+ C3'   G C 945 	 C3'   G A  17 	    2.583
+ C3'   U C 946 	 C3'   U A  18 	    1.865
+ C3'   C C 947 	 C3'   U A  19 	    0.842
+ C3'   G C 948 	 C3'   G A  20 	    1.465
+ C3'   U C 949 	 C3'   C A  21 	    1.864
+ C3'   A C 950 	 C3'   G A  22 	    2.027
+ C3'   G C 951 	 C3'   G A  23 	    2.303
+ C3'   G C 952 	 C3'   G A  24 	    1.831
+ C3'   U C 953 	 C3'   U A  25 	    1.648
+ C3'   U C 954 	 C3'   U A  26 	    1.616
+ C3'   C C 955 	 C3'   C A  27 	    1.715
+ C3'   A C 956 	 C3'   G A  28 	    1.572
+ C3'   A C 957 	 C3'   A A  29 	    1.049
+ C3'   G C 958 	 C3'   G A  30 	    1.387
+ C3'   U C 959 	 C3'   A A  31 	    2.657
+ C3'   C C 960 	 C3'   C A  32 	    1.810
+ C3'   C C 961 	 C3'   C A  33 	    2.163
+ C3'   U C 962 	 C3'   C A  34 	    2.519
+ C3'   A C 963 	 C3'   G A  35 	    1.867
+ C3'   C C 964 	 C3'   U A  36 	    1.703
+ C3'   G C 965 	 C3'   C A  37 	    2.037
+ C3'   C C 966 	 C3'   A A  38 	    2.300
+ C3'   C C 967 	 C3'   G A  39 	    2.499
+ C3'   G C 968 	 C3'   A A  40 	    2.731
+ C3'   C C 969 	 C3'   G A  41 	    1.780
+ C3'   C C 970 	 C3'   C A  42 	    1.698
+ C3'   C C 971 	 C3'   G A  43 	    2.978
+ C3'   A C 972 	 C3'   A A  44 	    3.845
+ C3'   C C 974 	 C3'   A A  45 	    7.441
+ C3'   G C 901 	 C3'   A A  46 	    1.269
+ C3'   G C 902 	 C3'   G A  47 	    3.110
+ C3'   G C 903 	 C3'   C A  48 	    1.815
+ C3'   C C 904 	 C3'   U A  49 	    1.449
+ C3'   G C 905 	 C3'   C A  50 	    1.783
+ C3'   G C 906 	 C3'   U A  51 	    2.241
+ C3'   C C 907 	 C3'   G A  52 	    1.744
+ C3'   U C 908 	 C3'   U A  53 	    1.173
+ C3'   A C 909 	 C3'   A A  54 	    0.603
+ C3'   G C 910 	 C3'   G A  55 	    1.685
+ C3'   C C 911 	 C3'   C A  56 	    2.182
+ C3'   U C 912 	 C3'   U A  57 	    2.661
+ C3'   C C 913 	 C3'   C A  58 	    2.887
+ C3'   A C 914 	 C3'   A A  59 	    2.005
+ C3'   G C 915 	 C3'   A A  60 	    1.488
+ C3'   C C 916 	 C3'   U A  61 	    3.146
+ C3'   G C 917 	 C3'   G A  62 	    2.390
+ C3'   G C 918 	 C3'   G A  63 	    1.829
+ C3'   A C 919 	 C3'   U A  64 	    2.371
+ C3'   A C 920 	 C3'   A A  65 	    3.175
+ C3'   G C 921 	 C3'   G A  66 	    3.095
+ C3'   A C 922 	 C3'   A A  67 	    2.488
+ C3'   G C 923 	 C3'   G A  68 	    2.616
+ C3'   C C 924 	 C3'   C A  69 	    2.427
+ C3'   G C 925 	 C3'   G A  70 	    2.197
+ C3'   C C 926 	 C3'   G A  71 	    1.237
+ C3'   U C 927 	 C3'   U A  72 	    1.293
+ C3'   C C 928 	 C3'   G A  73 	    1.097
+ C3'   G C 929 	 C3'   U A  74 	    1.553
+ C3'   C C 930 	 C3'   A A  75 	    3.015
+ C3'   C C 931 	 C3'   G A  76 	    4.616
+###############	###############	#########
+#Total CPU time is  0.00 seconds

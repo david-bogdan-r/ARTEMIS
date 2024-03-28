@@ -29,5 +29,15 @@
     "DC" : ["P", "OP1", "OP2"],
     "DT" : ["P", "OP1", "OP2"],
     "DA" : ["P", "OP1", "OP2"],
-    "DG" : ["P", "OP1", "OP2"]
+    "DG" : ["P", "OP1", "OP2"],
+
+    "CDP": ["PA", "O1A", "O2A"],
+    "UDP": ["PA", "O1A", "O2A"],
+    "ADP": ["PA", "O1A", "O2A"],
+    "GDP": ["PA", "O1A", "O2A"],
+
+    "CTP": ["PA", "O1A", "O2A"],
+    "UTP": ["PA", "O1A", "O2A"],
+    "ATP": ["PA", "O1A", "O2A"],
+    "GTP": ["PA", "O1A", "O2A"]
 }

@@ -2,26 +2,23 @@ import itertools
 import multiprocessing as mp
 import os
 import sys
-
 from functools import partial
 from heapq import nlargest
 from time import time
 from typing import Callable, Iterable
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 
-if __name__ == '__main__':
+try:
     from src.Kabsch import transform
     from src.NW import globalAlign
     from src.PDBio import BaseModel, getResSpec
     from src.resrepr import load_resrepr, resrepr
-    from src.argparse import argParse
-
-else:
+except:
     from .src.Kabsch import transform
     from .src.NW import globalAlign
     from .src.PDBio import BaseModel, getResSpec
@@ -81,7 +78,7 @@ qresneg={qresneg}
 qseed={qseed}
 
 matchrange={matchrange}
-nlargest={nlargest}
+toplargest={toplargest}
 shift={shift}
 stepdiv={stepdiv}
 
@@ -457,7 +454,7 @@ class ARTEMIS:
     def __init__(self,
                  r:'DataModel|dict', q:'DataModel|dict', 
                  matchrange:'float'=3.5, threads:'int'=mp.cpu_count(),
-                 nlargest:'int|None'=None, shift:'float|None'=None, 
+                 toplargest:'int|None'=None, shift:'float|None'=None, 
                  stepdiv:'int|None'=None,
                  ) -> 'None':
 
@@ -493,8 +490,8 @@ class ARTEMIS:
 
         if self.q.L >= 500:
 
-            if nlargest is None:
-                nlargest = 2 * threads
+            if toplargest is None:
+                toplargest = 2 * threads
 
             if shift is None:
                 shift = 20
@@ -503,8 +500,8 @@ class ARTEMIS:
                 stepdiv = 100
 
         else:
-            if nlargest is None:
-                nlargest = self.q.L
+            if toplargest is None:
+                toplargest = self.q.L
 
             if shift is None:
                 shift = 3
@@ -512,7 +509,7 @@ class ARTEMIS:
             if stepdiv is None:
                 stepdiv = 0
 
-        self.nlargest:'int' = nlargest # type: ignore
+        self.toplargest:'int' = toplargest # type: ignore
         self.shift    = shift
         self.stepdiv  = stepdiv
 
@@ -667,14 +664,14 @@ class ARTEMIS:
         while i + SEEDPOOL < count:
             step = [next(seed) for _ in range(SEEDPOOL)]
             h = nlargest(
-                self.nlargest,
+                self.toplargest,
                 h + self.get_hit(step),
                 key=len
             )
             i += SEEDPOOL
 
         h = nlargest(
-            self.nlargest,
+            self.toplargest,
             h + self.get_hit(seed),
             key=len
         )
@@ -737,7 +734,7 @@ class ARTEMIS:
             'qseed'     : q.seed,
 
             'matchrange': self.matchrange,
-            'nlargest'  : self.nlargest,
+            'toplargest': self.toplargest,
             'shift'     : self.shift,
             'stepdiv'   : self.stepdiv,
 
@@ -984,8 +981,18 @@ class ARTEMIS:
 
         if permutation:
             index['permutation'] = PERMUTATION.format(**self.get_permutation())
+            index['distance_2'] = '\nDistance table:\n\n'\
+                + (self
+                    .get_distance_2()
+                    .to_string(
+                        index=False,
+                        justify='center',
+                        float_format='{:.2f}'.format
+                        ) + '\n'
+                    )
         else:
             index['permutation'] = ''
+            index['distance_2']  = ''
 
         if verbose:
             index['config']     = CONFIG.format(**self.get_config())
@@ -1000,20 +1007,9 @@ class ARTEMIS:
                        )
                    )
 
-            index['distance_2'] = '\nDistance table:\n\n'\
-                + (self
-                   .get_distance_2()
-                   .to_string(
-                       index=False,
-                       justify='center',
-                       float_format='{:.2f}'.format
-                       ) + '\n'
-                   )
-
         else:
             index['config']     = ''
             index['distance_1'] = ''
-            index['distance_2'] = ''
 
         return INDEX.format(**index)
 
@@ -1166,6 +1162,7 @@ class ARTEMIS:
 
 
 if __name__ == '__main__':
+    from src.argparse import argParse
 
     args = argParse(sys.argv[1:])
 
@@ -1192,7 +1189,7 @@ if __name__ == '__main__':
     artemis = ARTEMIS(
         r, q,
         matchrange=args.matchrange, threads=args.threads,
-        nlargest=args.nlargest, shift=args.shift, stepdiv=args.stepdiv,
+        toplargest=args.toplargest, shift=args.shift, stepdiv=args.stepdiv,
     )
 
     artemis.run()

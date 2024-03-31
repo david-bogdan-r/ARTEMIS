@@ -9,26 +9,12 @@ TODO
 ## How ARTEMIS works
 
 ARTEMIS reads a reference and a query structure from the specified coordinate files in PDB or in mmCIF format and identifies the two best superpositions.
-The first superposition is strictly backbone oriented (i.e. does not allow backbone permutations) and is fed to the standard output.
+The first superposition is strictly backbone-dependent (i.e. does not allow backbone permutations) and is fed to the standard output.
 In verbose mode, the details of the second superposition, which allows permutations, are additionally fed to the standard output.
 The second superposition details are printed automatically if its TM-score is at least 10% higher than the TM-score of the first alignment.
 The user can choose to save the superpositions of the query structure in PDB or mmCIF format along with the residue matching tables in the specified folder.
 By default, ARTEMIS saves the output files only for the first alignment, unless the second one is at least 10% better in TM-score.
 By default, ARTEMIS reads the entire first models of the input files.
-
-### Algorithm
-
-- perform superpositions of the query structure on the reference structure by each possible pair of residues between the sets *rseed* and *qseed* (the superposition operator is calculated using Kabsch's algorithm between 3-atom coordinate representations of residues);
-- in each superposition find a set of mutually closest residue pairs (residue matches) under *matchrange* angstroms between C3' atoms;
-- among the *nlargest* largest sets of residue matches, build sequence alignments with and without permutations:
-  - by the set of residue matches superimpose the query structure on the reference structure (using 3-atom coordinate representations of residues);
-  - the sets of residue matches RM between resuperimposed structures with the distance between C3' atoms under 8 angstroms are considered to be **alignments with permutations**;
-  - calculate the Score Matrix to obtain the permutation-free alignment:
-    - multiply the matrix of pairwise distances between C3' atoms of superimposed structures by -1;
-    - increase all the matrix values by a constant to set the minimum value of a residue match to zero (m_ij = m_ij - min(RM));
-    - increase all the matrix values by *shift* to improve the coverage of the alignment;
-  - find the optimal **alignment** by Needleman-Wunsch Algorithm (score maximization);
-- select the two best alignments by maximizing the sum of two TM-scores.
 
 ## Installation
 
@@ -161,21 +147,21 @@ ARTEMIS was tested with two different Python3 environments:
         structure exceeds 500 residues, stepdiv will be set to 100 
         by default.
 
-    nlargest=INT [DEFAULT: nlargest=len(qres) if len(qres) < 500 else 2*threads]
+    toplargest=INT [DEFAULT: toplargest=len(qres) if len(qres) < 500 else 2*threads]
         Number of largest mutually closest residue sets for which 
         alignments are constructed.
 
     shift=FLOAT [DEFAULT: shift=3 if len(qres) < 500 else 20]
-        The shift value for the ScoreMatrix used in the Needleman-Wunsch
-        algorithm. Larger shift provides higher coverage.
+        The shift2 value for the ScoreMatrix used in the Needleman-Wunsch
+        algorithm. Larger shift2 provides higher coverage.
 
     -p, --permutation [DEFAULT: OFF]
-        Permutation mode. If specified, ARTEMIS will add the permutation 
+        Permutation mode. If specified, ARTEMIS will add the topology-independent 
         alignment details to the standard output, and save its output files
         to the saveto folder (if the folder is specified). 
         The mode is automatically activated if the TM-score of the query 
-        structure for alignment with permutations is at least 10% higher 
-        than the TM-score of the permutation-free alignment.
+        structure for topology-independent alignment is at least 10% higher 
+        than the TM-score of the backbone-dependent alignment.
 
     -v, --verbose [DEFAULT: OFF]
         Verbose mode.

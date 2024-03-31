@@ -1,4 +1,4 @@
-PDB1	PDB2	TM1	TM2	RMSD	L1	L2	Lali	time	nlargest	shift	stepdiv
+PDB1	PDB2	TM1	TM2	RMSD	L1	L2	Lali	time	toplargest	shift	stepdiv
 4p8zA_groupI	3digX_lysine	0.4016	0.4234	4.32	188	173	108	2.850	173	3	0
 4p8zA_groupI	3pdrX_Mbox	0.4001	0.4389	4.33	188	161	109	2.480	161	3	0
 4p8zA_groupI	3l3cP_glmS	0.3865	0.4433	3.89	188	153	98	2.310	153	3	0

@@ -262,14 +262,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    '-n', '--nlargest',
+    '-n', '--toplargest',
     default=None,
-    dest='nlargest',
+    dest='toplargest',
     required=False,
     type=int,
     help='''
-    (default: nlargest=(length of QUERY) if length of QUERY
-    less than 500nt else nlargest=2*THREADS)
+    (default: toplargest=(length of QUERY) if length of QUERY
+    less than 500nt else toplargest=2*THREADS)
     Number of largest mutually closest residue sets for which 
     alignments are constructed.
     '''

@@ -1097,7 +1097,8 @@ class ARTEMIS:
             )
             ax.set_title(q.name, fontsize=18)
             ax.set_ylabel(r.name, fontsize=18)
-            fig.savefig(saveto + '/' + fname, dpi=500, bbox_inches='tight')
+            fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
+            plt.close(fig)
 
         if permutation:
             a, b = ans2['transform']
@@ -1158,7 +1159,8 @@ class ARTEMIS:
             )
             ax.set_title(q.name, fontsize=18)
             ax.set_ylabel(r.name, fontsize=18)
-            fig.savefig(saveto + '/' + fname, dpi=500, bbox_inches='tight')
+            fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
+            plt.close(fig)
 
 
 if __name__ == '__main__':

@@ -529,6 +529,10 @@ def atom_id_PDBformat(atom:'pd.Series') -> 'str':
         return '{:>2}'.format(type_symbol) + '{:<2}'.format(suff)
 
     else:
+        if len(atom_id) == 1:
+            return atom_id+' '*2
+        if len(atom_id) == 2:
+            return atom_id+' '
         return atom_id
 
 def specParse(spec:'str') -> 'list':

@@ -55,6 +55,7 @@ ARTEMIS was tested with two different Python3 environments:
 
     python3 artemis.py r=FILENAME q=FILENAME [OPTIONS]
 ****
+
 ## Usage examples
 
     1) python3 artemis.py r=examples/6ugg/6ugg.cif  q=examples/1ivs.pdb rres=/B qres=/C saveto=result saveformat=pdb

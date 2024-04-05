@@ -55,10 +55,10 @@ except:
 
 HEAD  = '''
  ********************************************************************
- * ARTEMIS (Version 20231004)                                       *
+ * ARTEMIS (Version 20240405)                                       *
  * using ARTEM to Infer Sequence alignment                          *
  * Reference: TODO                                                  *
- * Please email comments and suggestions to dbohdan@iimcb.gov.pl    *
+ * Please email comments and suggestions to dav.bog.rom@gmail.com   *
  ********************************************************************
 '''
 
@@ -1036,11 +1036,6 @@ class ARTEMIS:
         ans1 = self.ans1
         ans2 = self.ans2
 
-        # if os.path.isdir(saveto): # type: ignore
-        #     files = set(os.listdir(saveto))
-        # else:
-        #     files = set()
-
         rAli = ans1['rAli']
         qAli = ans1['qAli']
 
@@ -1056,11 +1051,6 @@ class ARTEMIS:
                             .reset_index()[q.atom_site.columns])
 
             fname = '{}_to_{}{}'.format(q.name, r.name, saveformat)
-            # i = 0
-            # while fname in files:
-            #     fname = '{}_to_{}_({}){}'.format(q.name, r.name, i, saveformat)
-            #     i += 1
-
             if saveformat == '.cif':
                 qq.to_cif('{}/{}'.format(saveto, fname))
             else:
@@ -1069,20 +1059,11 @@ class ARTEMIS:
             table = self.get_distance_1()
 
             fname = '{}_to_{}.tsv'.format(q.name, r.name)
-            # i = 0
-            # while fname in files:
-            #     fname = '{}_to_{}_({}).tsv'.format(q.name, r.name, i)
-            #     i += 1
-
             table.to_csv(saveto + '/' + fname, sep='\t', 
                          float_format='{:.3f}'.format, index=False)
 
 
             fname =  '{}_to_{}.png'.format(q.name, r.name)
-            # i = 0
-            # while fname in files:
-            #     fname = '{}_to_{}_({}).png'.format(q.name, r.name, i)
-            #     i += 1
             fig = plt.figure(figsize=(10, 10))
             amat = np.zeros((r.L, q.L), dtype=int)
             amat[h[0], h[1]] = 1
@@ -1110,11 +1091,6 @@ class ARTEMIS:
                             .reset_index()[q.atom_site.columns])
 
             fname = '{}_to_{}_ti{}'.format(q.name, r.name, saveformat)
-            # i = 0
-            # while fname in files:
-            #     fname = ('{}_to_{}_ti_({}){}'
-            #              .format(q.name, r.name, i, saveformat))
-            #     i += 1
 
             if saveformat == '.pdb':
                 qq.to_pdb('{}/{}'.format(saveto, fname))
@@ -1124,19 +1100,13 @@ class ARTEMIS:
             table = self.get_distance_2()
 
             fname = '{}_to_{}_ti.tsv'.format(q.name, r.name)
-            # i = 0
-            # while fname in files:
-            #     fname = '{}_to_{}_ti_({}).tsv'.format(q.name, r.name, i)
-            #     i += 1
+
 
             table.to_csv(saveto + '/' + fname, sep='\t',
                          float_format='{:.3f}'.format, index=False)
 
             fname =  '{}_to_{}_ti.png'.format(q.name, r.name)
-            # i = 0
-            # while fname in files:
-            #     fname = '{}_to_{}_ti_({}).png'.format(q.name, r.name, i)
-            #     i += 1
+
             fig = plt.figure(figsize=(10, 10))
             amat = np.zeros((r.L, q.L), dtype=int)
             rAli, qAli = self.ans2['rAli'], self.ans2['qAli']

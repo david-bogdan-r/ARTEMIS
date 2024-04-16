@@ -456,6 +456,7 @@ class ARTEMIS:
                  matchrange:'float'=3.5, threads:'int'=mp.cpu_count(),
                  toplargest:'int|None'=None, shift:'float|None'=None, 
                  stepdiv:'int|None'=None,
+                 superonly:'bool'=False
                  ) -> 'None':
 
         self.tic        = time()
@@ -535,6 +536,7 @@ class ARTEMIS:
         self.ans2 = {}
 
         self.perm = False
+        self.superonly = superonly
 
 
     def insertNaNGap(self, rAli, qAli):
@@ -655,6 +657,34 @@ class ARTEMIS:
         return hits
 
     def run(self):
+
+        if self.superonly:
+
+            r = self.r
+            q = self.q
+
+            n = len(r.m)
+            if n != len(q.m):
+                raise ValueError("Sequence lengths are not equal, disable superonly mode.")
+
+            if n < 3:
+                raise ValueError("Sequence lengths < 3, superposition is not possible.")
+
+            ri = np.arange(n, dtype=int)
+            qi = np.arange(n, dtype=int)
+
+            ans2 = self.impose(r.m, q.m)
+            ans2['rAli'] = r.i[ri]
+            ans2['qAli'] = q.i[qi]
+
+
+            ans1 = ans2.copy()
+            ans1['rAli'] = r.seq
+            ans1['qAli'] = q.seq
+
+            self.ans1 = ans1
+            self.ans2 = ans2
+            return
 
         seed, count = self.get_seed()
 
@@ -1162,6 +1192,7 @@ if __name__ == '__main__':
         r, q,
         matchrange=args.matchrange, threads=args.threads,
         toplargest=args.toplargest, shift=args.shift, stepdiv=args.stepdiv,
+        superonly=args.superonly
     )
 
     artemis.run()

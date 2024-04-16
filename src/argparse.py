@@ -425,3 +425,17 @@ parser.add_argument(
     See the format description at the end of the OPTIONS section.
     '''
 )
+
+parser.add_argument(
+    '-superonly', '--superonly',
+    default=False,
+    action='store_true',
+    dest='superonly',
+    required=False,
+    help='''
+    (default: superonly=False)
+    If specified, ARTEMIS will assume the input sequences 
+    are of the same length and will try to superimpose them 
+    with the perfect sequence alignment.
+    '''
+)

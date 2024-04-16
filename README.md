@@ -168,6 +168,11 @@ ARTEMIS was tested with two different Python3 environments:
     -v, --verbose [DEFAULT: OFF]
         Verbose mode.
 
+    -superonly, --superonly [DEFAULT: superonly=False]
+        If specified, ARTEMIS will assume the input sequences 
+        are of the same length and will try to superimpose them 
+        with the perfect sequence alignment.
+
     ***************************************************************************
     ARTEMIS uses a ChimeraX-like format to specify the residues of interest 
     using the "res" parameters:
@@ -206,4 +211,4 @@ ARTEMIS was tested with two different Python3 environments:
 
 ## Contacts
 
-David Bogdan, *e-mail: <dbohdan@iimcb.gov.pl>*
+David Bogdan, *e-mail: <dav.bog.rom@gmail.com>*

@@ -681,6 +681,9 @@ class ARTEMIS:
             ans1 = ans2.copy()
             ans1['rAli'] = r.seq
             ans1['qAli'] = q.seq
+            rAli, qAli = self.insertNaNGap(ans1['rAli'], ans1['qAli'])
+            ans1['rAli'] = rAli
+            ans1['qAli'] = qAli
 
             self.ans1 = ans1
             self.ans2 = ans2

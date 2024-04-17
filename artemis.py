@@ -626,7 +626,36 @@ class ARTEMIS:
                         c = 'M'
                 qAli += c
 
-        return rAli, qAli
+        # broken residue to lowercase
+        rAli_lc = ''
+        i = -1
+        for c in rAli:
+            if c != '-':
+                i += 1
+
+                if not rmsk[i]:
+                    rAli_lc += c.lower()
+                else:
+                    rAli_lc += c
+
+            else:
+                rAli_lc += c
+
+        qAli_lc = ''
+        i = -1
+        for c in qAli:
+            if c != '-':
+                i += 1
+
+                if not qmsk[i]:
+                    qAli_lc += c.lower()
+                else:
+                    qAli_lc += c
+
+            else:
+                qAli_lc += c
+
+        return rAli_lc, qAli_lc
 
     def get_seed(self):
 

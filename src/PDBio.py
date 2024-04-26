@@ -134,7 +134,7 @@ def as_pdb(text:'str') -> 'pd.DataFrame':
 
 def as_cif(text:'str') -> 'pd.DataFrame':
 
-    s = text.find('_atom_site.')
+    s = text.find('loop_\n_atom_site.') + len('loop_\n')
     e = text.find('#', s) - 1
     t = text[s:e].split('\n')
 

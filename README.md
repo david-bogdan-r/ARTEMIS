@@ -24,7 +24,7 @@ Clone the GitHub repository by typing
 
 ## Dependencies
 
-ARTEMIS requires three Python3 libraries to be installed:
+ARTEMIS requires four Python3 libraries to be installed:
 
 - numpy
 - pandas

@@ -271,6 +271,28 @@ def align(
         dict(zip(zip(ri, qi), dist[ri, qi]))
     ).T
 
+    if not h.size:
+        a = np.eye(3)
+        b = np.zeros(3)
+
+        ans1 = {
+            'transform': (a, b),
+            'rTM': -1,
+            'qTM': -1,
+            'RMSD': -1,
+            'rAli': r.seq + '-'*len(q.seq),
+            'qAli': q.seq + '-'*len(r.seq),
+        }
+        ans2 = {
+            'transform': (a, b),
+            'rTM': -1,
+            'qTM': -1,
+            'RMSD': -1,
+            'rAli': r.i[0:0],
+            'qAli': q.i[0:0]
+        }
+        return ans1, ans2
+
     ri, qi = h[:, h[0].argsort()]
 
     ans2 = impose(rm[ri], qm[qi])

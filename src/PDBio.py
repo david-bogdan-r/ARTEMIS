@@ -451,6 +451,7 @@ class BaseModel:
             ii += 1
             a['id'] = ii % 100_000
             text += PDBFORMAT['ATOM'].format(**a) # type: ignore
+            a0 = a
 
         ii += 1
         a['id'] = ii % 100_000

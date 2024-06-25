@@ -7,8 +7,7 @@ from string import ascii_letters, digits
 import numpy as np
 import pandas as pd
 
-pd.to_numeric.__defaults__ = ('ignore',) + pd.to_numeric.__defaults__[1:]
-
+pd.set_option('future.no_silent_downcasting', True)
 
 FORMAT = {
     'PDB'  : '.pdb',
@@ -127,8 +126,16 @@ def as_pdb(text:'str') -> 'pd.DataFrame':
         elif lk == 'MODEL ':
             m = l.split()[1]
 
-    atom_site = pd.DataFrame(a).apply(pd.to_numeric).fillna('')
-    atom_site['auth_asym_id'] = atom_site['auth_asym_id'].astype(str)
+    atom_site = pd.DataFrame(a).astype(
+        {
+            'id':int,
+            'Cartn_x': float,
+            'Cartn_y': float,
+            'Cartn_z': float,
+            'auth_seq_id': int,
+            'pdbx_PDB_model_num': int
+        }
+    )
 
     return atom_site
 
@@ -147,16 +154,22 @@ def as_cif(text:'str') -> 'pd.DataFrame':
         l = t[i]
 
     a = map(str.split, t[i:])
-    atom_site = pd.DataFrame(a, columns=columns)
-    atom_site = atom_site.apply(pd.to_numeric)
+    atom_site = pd.DataFrame(a, columns=columns).astype(
+        {
+            'id':int,
+            'Cartn_x': float,
+            'Cartn_y': float,
+            'Cartn_z': float,
+            'auth_seq_id': int,
+            'pdbx_PDB_model_num': int
+        }
+    )
 
     for col in atom_site.columns:
         if col.startswith('label'):
             new_col = col.replace('label', 'auth')
             if new_col not in atom_site.columns:
                 atom_site[new_col] = atom_site[col]
-
-    atom_site['auth_asym_id'] = atom_site['auth_asym_id'].astype(str)
 
     for col in ['label_atom_id', 'auth_atom_id']:
         if col in atom_site.columns:
@@ -282,7 +295,7 @@ class BaseModel:
             label = dict(zip(label, range(1, len(label) + 1)))
 
             atom_site['label_entity_id'] = (atom_site['label_asym_id']
-                                            .replace(label))
+                                            .replace(to_replace=label))
 
             atom_site = atom_site[
                 [

@@ -24,12 +24,13 @@ Clone the GitHub repository by typing
 
 ## Dependencies
 
-ARTEMIS requires four Python3 libraries to be installed:
+ARTEMIS requires five Python3 libraries to be installed:
 
 - numpy
 - pandas
 - scipy
 - matplotlib
+- requests
 
 To install, type:
 
@@ -43,13 +44,15 @@ ARTEMIS was tested with two different Python3 environments:
 - numpy==1.22.3
 - pandas==1.4.1
 - scipy==1.8.0
+- requests==2.31.0
 
 ### MacOS Sonoma 14.0
 
-- python==3.11.0
-- numpy==1.23.4
-- pandas==1.5.1
-- scipy==1.9.3
+- python==3.12
+- numpy==1.26.3
+- pandas==2.1.4
+- scipy==1.11.4
+- requests==2.31.0
 
 ## Usage
 
@@ -62,22 +65,45 @@ ARTEMIS was tested with two different Python3 environments:
 
     This command will superimpose chain C from 1ivs to chain B from 6ugg 
     and will save the superimposed structure into "result" sub-folder
-    in PDB format. 
-    
+    in PDB format.
+
     2) python3 artemis.py r=examples/6ugg/6ugg.cif  q=examples/1ivs.pdb rres=/B qres=/C saveto=result saveformat=pdb -v
 
     The same command as in example 1, but with verbose mode enabled. 
 
 ## Options
 
-    r=FILENAME [REQUIRED OPTION]
+    r=FILENAME/FOLDER/PDB-ENTRY [REQUIRED OPTION]
         Path to a reference structure in PDB/mmCIF format. For faster 
         performance, it's advised to specify the largest of the two 
         structures as the reference structure.
+        If a folder or a mask is specified instead, ARTEMIS will process 
+        all the PDB/mmCIF files (according to the rformat parameter) 
+        in that folder/mask as a reference structure one by one.
+        If a 4-character PDB entry is specified, ARTEMIS will download the
+        structure from RCSB PDB.
 
-    q=FILENAME [REQUIRED OPTION]
+    q=FILENAME/FOLDER/PDB-ENTRY [REQUIRED OPTION]
         Path to a query structure, the one that ARTEMIS superimposes to 
         the reference, in PDB/mmCIF format.
+        If a folder or a mask is specified instead, ARTEMIS will process 
+        all the PDB/mmCIF files (according to the qformat parameter) 
+        in that folder/mask as a query structure one by one.
+        If a 4-character PDB entry is specified, ARTEMIS will download the
+        structure from RCSB PDB.
+
+    addhits=FLOAT [DEFAULT: addhits=0.0]
+        Return additional suboptimal hits (query motif search mode). 
+        If 0 < addhits < 1, ARTEMIS will report alternative hits with the
+        TM-score value of the query structure >= addhits. If addhits > 1,
+        ARTEMIS will return up to int(addhits) alternative hits.
+        For each alternative hit, a new ARTEMIS iteration will be performed,
+        with the rresneg parameter populated with the residues of the hits 
+        obtained at the previous iterations, as defined by "-s" and "-p"
+        parameters. If both of the parameters are off, the sequentially-ordered
+        hits will be considered unless the topology-independent hit has the
+        query TM-score that is at least 10% higher than the one in the 
+        sequentially-ordered hit.
 
     matchrange=FLOAT [DEFAULT: matchrange=3.5]
         The threshold used for searching the mutually closest residues. 
@@ -108,10 +134,7 @@ ARTEMIS was tested with two different Python3 environments:
     rresneg=STRING, qresneg=STRING [DEFAULT: None]
         The specification of the input reference (rresneg) and query (qresneg) 
         structures. The specified residues will be ignored and all the other 
-        residues considered as part of the structure. If both "rres" 
-        and "rresneg" (or "qres" and "qresneg") are specified simultaneusly, 
-        ARTEMIS will ignore "rres" ("qres") and consider only "rresneg" 
-        ("qresneg"). 
+        residues considered as part of the structure.
         See the format description at the end ofthe OPTIONS section.
 
     rseed=STRING, qseed=STRING [DEFAULT: rseed=rres,qseed=qres]
@@ -138,8 +161,9 @@ ARTEMIS was tested with two different Python3 environments:
         ARTEMIS will create it. If the folder is not specified, 
         nothing will be saved.
 
-    threads=INT [DEFAULT: threads=CPU_COUNT]
-        Number of CPUs to use.
+    shift=FLOAT [DEFAULT: shift=3 if len(qres) < 500 else 20]
+        The shift2 value for the ScoreMatrix used in the Needleman-Wunsch
+        algorithm. Larger shift2 provides higher coverage.
 
     stepdiv=INT [DEFAULT: stepdiv=0 if len(qres) < 500 else 100]
         The step divider parameter. The parameter is used to speed up 
@@ -153,9 +177,8 @@ ARTEMIS was tested with two different Python3 environments:
         Number of largest mutually closest residue sets for which 
         alignments are constructed.
 
-    shift=FLOAT [DEFAULT: shift=3 if len(qres) < 500 else 20]
-        The shift2 value for the ScoreMatrix used in the Needleman-Wunsch
-        algorithm. Larger shift2 provides higher coverage.
+    threads=INT [DEFAULT: threads=CPU_COUNT]
+        Number of CPUs to use.
 
     -p, --permutation [DEFAULT: OFF]
         Permutation mode. If specified, ARTEMIS will add the topology-independent 
@@ -164,14 +187,27 @@ ARTEMIS was tested with two different Python3 environments:
         The mode is automatically activated if the TM-score of the query 
         structure for topology-independent alignment is at least 10% higher 
         than the TM-score of the backbone-dependent alignment.
+        If addhits > 0 and this parameter is on, topology-independent hits
+        will always contribute to the rresneg parameter of the next iteration.
+
+    -s, --sequential [DEFAULT: OFF]
+        If addhits > 0 and this parameter is on, sequentially-ordered hits
+        will always contribute to the rresneg parameter of the next iteration.
+
+    -tsv, --tsv [DEFAULT: OFF]
+        If specified, the output will be in TSV format instead of plain text.
+        By default, this is turned off with addhits <= 0 and turned on otherwise.
+
+    -superonly, --superonly [DEFAULT: OFF]
+        If specified, ARTEMIS will assume the input sequences 
+        are of the same length and will try to superimpose them 
+        with the perfect sequence alignment.
 
     -v, --verbose [DEFAULT: OFF]
         Verbose mode.
 
-    -superonly, --superonly [DEFAULT: superonly=False]
-        If specified, ARTEMIS will assume the input sequences 
-        are of the same length and will try to superimpose them 
-        with the perfect sequence alignment.
+    -silent, --silent [DEFAULT: OFF]
+        If specified, ARTEMIS will not raise any errors.
 
     ***************************************************************************
     ARTEMIS uses a ChimeraX-like format to specify the residues of interest 
@@ -185,14 +221,14 @@ ARTEMIS was tested with two different Python3 environments:
                                                      separated by spaces and 
                                                      enclosed in double quotes.
 
-        #[INT]                    == Model number
-        /[STRING]                 == Chain identifier
-        :[STRING][_INT[CHAR|_INT] == Residue(s) specification:
-            
-            :STRING     == Residue type    
+        #[INT]                     == Model number
+        /[STRING]                  == Chain identifier
+        :[STRING][_INT[CHAR|_INT]] == Residue(s) specification:
+
+            :STRING     == Residue type
             :_INT[CHAR] == Residue number [with insertion code]
             :_INT_INT   == Range of residue numbers
-            
+
     Structure specification examples:
 
     rres="#1/B:_-10_20 #1/A"    - Consider the entire chain A from model 1 

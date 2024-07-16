@@ -35,39 +35,9 @@ def unify(args:'list'):
 
 def setDefaultFormats(args:'argparse.Namespace'):
 
-    if args.rformat is None:
-        fmt = os.path.splitext(args.r)[-1]
-        if fmt in {'.cif', '.pdb', '.mmcif'}:
-            args.rformat = fmt
-        else:
-            args.rformat = '.pdb'
-
-    if args.qformat is None:
-        fmt = os.path.splitext(args.q)[-1]
-        if fmt in {'.cif', '.pdb', '.mmcif'}:
-            args.qformat = fmt
-        else:
-            args.qformat = '.pdb'
-
-    if args.saveformat is None:
-        args.saveformat = args.qformat
-
-
-    if args.saveres is None:
-        if args.qresneg is None:
-            args.saveres = args.qres
-        else:
-            args.saveres = args.qresneg
-
     if args.verbose and not args.permutation:
         args.permutation = True
 
-
-# def isfilepath(path:'str') -> 'str':
-#     if os.path.isfile(path):
-#         return path
-#     else:
-#         raise FileNotFoundError(path)
 
 def fileformat(fmt:'str'):
     FMT = fmt.strip('.').upper()
@@ -123,11 +93,11 @@ parser = argparse.ArgumentParser(
         #[INT]                    == Model number
         /[STRING]                 == Chain identifier
         :[STRING][_INT[CHAR|_INT] == Residue(s) specification:
-            
+
             :STRING     == Residue type    
             :_INT[CHAR] == Residue number [with insertion code]
             :_INT_INT   == Range of residue numbers
-            
+
     Structure specification examples:
 
     rres="#1/B:_-10_20 #1/A"    - Consider the entire chain A from model 1 
@@ -167,8 +137,13 @@ parser.add_argument(
     # type=isfilepath,
     help='''
     Path to a reference structure in PDB/mmCIF format. For faster 
-    performance, it\'s advised to specify the largest of the two 
+    performance, it's advised to specify the largest of the two 
     structures as the reference structure.
+    If a folder or a mask is specified instead, ARTEMIS will process 
+    all the PDB/mmCIF files (according to the rformat parameter) 
+    in that folder/mask as a reference structure one by one.
+    If a 4-character PDB entry is specified, ARTEMIS will download the
+    structure from RCSB PDB.
     '''
 )
 
@@ -179,55 +154,42 @@ parser.add_argument(
     required=True,
     # type=isfilepath,
     help='''
-    Path to a query structure, the one that ARTEMIS superimposes to
+    Path to a query structure, the one that ARTEMIS superimposes to 
     the reference, in PDB/mmCIF format.
+    If a folder or a mask is specified instead, ARTEMIS will process 
+    all the PDB/mmCIF files (according to the qformat parameter) 
+    in that folder/mask as a query structure one by one.
+    If a 4-character PDB entry is specified, ARTEMIS will download the
+    structure from RCSB PDB.
     '''
 )
 
+
 parser.add_argument(
-    '-v', '--verbose',
-    default=False,
-    action='store_true',
-    dest='verbose',
+    '-addhits', '--addhits',
+    default=0.0,
+    dest='addhits',
     required=False,
+    type=float,
     help='''
-    (default: verbose=False)
-    Verbose mode.
-    '''
+    (default: addhits=0.0)
+    Return additional suboptimal hits (query motif search mode). 
+    If 0 < addhits < 1, ARTEMIS will report alternative hits with the
+    TM-score value of the query structure >= addhits. If addhits > 1,
+    ARTEMIS will return up to int(addhits) alternative hits.
+    For each alternative hit, a new ARTEMIS iteration will be performed,
+    with the rresneg parameter populated with the residues of the hits 
+    obtained at the previous iterations, as defined by "-s" and "-p"
+    parameters. If both of the parameters are off, the sequentially-ordered
+    hits will be considered unless the topology-independent hit has the
+    query TM-score that is at least 10%% higher than the one in the 
+    sequentially-ordered hit.
+    ''',
 )
 
-parser.add_argument(
-    '-p', '--permutation',
-    default=False,
-    action='store_true',
-    dest='permutation',
-    required=False,
-    help='''
-    (default: permutation=False)
-    Permutation mode.
-    If specified, ARTEMIS will add the permutation alignment details
-    to the standard output, and save its output files
-    to the saveto folder (if the folder is specified). 
-    The mode is automatically activated if the TM-score of the query 
-    structure for alignment with permutations is at least 10 percent higher 
-    than the TM-score of the permutation-free alignment.
-    '''
-)
 
 parser.add_argument(
-    '-t', '--threads',
-    default=mp.cpu_count(),
-    dest='threads',
-    required=False,
-    type=threads,
-    help='''
-    (default: threads=%(default)d [CPU count])
-    Number of CPUs to use.
-    '''
-)
-
-parser.add_argument(
-    '-m', '--matchrange',
+    '-matchrange', '--matchrange',
     default=3.5,
     dest='matchrange',
     required=False,
@@ -244,55 +206,12 @@ parser.add_argument(
     ''',
 )
 
-parser.add_argument(
-   '-d', '--stepdiv',
-    default=None,
-    dest='stepdiv',
-    required=False,
-    type=float,
-    help='''
-    (default: stepdiv=0 if QUERY length is less than 500nt else stepdiv=100)
-    The step divider parameter. The parameter is used to speed up 
-    the procedure for large structures. If stepdiv > 0, ARTEMIS
-    will consider only each Sth reference residue as matching seed,
-    where S = 1 + len(qres)//stepdiv. If the size of the query 
-    structure exceeds 500 residues, stepdiv will be set to 100 
-    by default.
-    '''
-)
-
-parser.add_argument(
-    '-n', '--toplargest',
-    default=None,
-    dest='toplargest',
-    required=False,
-    type=int,
-    help='''
-    (default: toplargest=(length of QUERY) if length of QUERY
-    less than 500nt else toplargest=2*THREADS)
-    Number of largest mutually closest residue sets for which 
-    alignments are constructed.
-    '''
-)
-
-parser.add_argument(
-    '-s', '--shift',
-    default=None,
-    dest='shift',
-    required=False,
-    type=float,
-    help='''
-    (default: shift=3 if length of QUERY less than 500nt else shift=20)
-    The shift value for the ScoreMatrix used in the Needleman-Wunsch
-    algorithm. Larger shift provides higher coverage.
-    '''
-)
 
 parser.add_argument(
     '-rformat', '--rformat',
     type=fileformat,
     help='''
-    (default: rformat=[r extension]|PDB) 
+    (default: rformat=PDB) 
     See -qformat.
     '''
 )
@@ -302,7 +221,7 @@ parser.add_argument(
     default=None,
     type=fileformat,
     help='''
-    (default: qformat=[q extension]|PDB) 
+    (default: qformat=PDB) 
     The specification of the input coordinate file formats
     (case-insensitive). By default, ARTEMIS tries to infer the format
     from the extensions of the input filenames. ".pdb", ".cif",
@@ -315,6 +234,7 @@ parser.add_argument(
     '''
 )
 
+
 parser.add_argument(
     '-rres', '--rres',
     default='#1',
@@ -324,6 +244,7 @@ parser.add_argument(
     See -qres.
     '''
 )
+
 
 parser.add_argument(
     '-qres', '--qres',
@@ -338,6 +259,7 @@ parser.add_argument(
     '''
 )
 
+
 parser.add_argument(
     '-rresneg', '--rresneg',
     default=None,
@@ -348,6 +270,7 @@ parser.add_argument(
     '''
 )
 
+
 parser.add_argument(
     '-qresneg', '--qresneg',
     default=None,
@@ -356,31 +279,59 @@ parser.add_argument(
     (default: qresneg=None)
     The specification of the input reference (rresneg) and query (qresneg)
     structures. The specified residues will be ignored and all the other
-    residues considered as part of the structure. If both "rres"
-    and "rresneg" (or "qres" and "qresneg") are specified simultaneusly,
-    ARTEMIS will ignore "rres" ("qres") and consider only "rresneg" ("qresneg").
+    residues considered as part of the structure.
     See the format description at the end ofthe OPTIONS section.
     '''
 )
+
 
 parser.add_argument(
     '-rseed', '--rseed',
     default=None,
     type=str,
     help='''
-    (default: rseed=RRES|RRESNEG)
+    (default: rseed=rres)
     See -qseed.
     '''
 )
+
 
 parser.add_argument(
     '-qseed', '--qseed',
     default=None,
     type=str,
     help='''
-    (default: qseed=QRES|QRESNEG)
+    (default: qseed=qres)
     The specification of the reference and query residues that ARTEMIS
     can use for single-residue matching seeds.
+    See the format description at the end of the OPTIONS section.
+    '''
+)
+
+
+parser.add_argument(
+    '-saveformat', '--saveformat',
+    default=None,
+    type=fileformat,
+    help='''
+    (default: saveformat=qformat)
+    The specification of the format of the output coordinate files.
+    By default, ARTEMIS will save the coordinate files in the same format
+    as the query input file. If the "saveformat" parameter is specified
+    and it\'s either "PDB", "CIF", or "MMCIF" (case-insensitive), ARTEMIS
+    will save the output coordinate files in the specified format.
+    '''
+)
+
+
+parser.add_argument(
+    '-saveres', '--saveres',
+    default=None,
+    type=str,
+    help='''
+    (default: saveres=qres)
+    The specification of the query structure residues that will be saved
+    in the output coordinate files.
     See the format description at the end of the OPTIONS section.
     '''
 )
@@ -400,31 +351,113 @@ parser.add_argument(
     '''
 )
 
+
 parser.add_argument(
-    '-saveformat', '--saveformat',
+    '-shift', '--shift',
     default=None,
-    type=fileformat,
+    dest='shift',
+    required=False,
+    type=float,
     help='''
-    (default: saveformat=QFORMAT)
-    The specification of the format of the output coordinate files.
-    By default, ARTEMIS will save the coordinate files in the same format
-    as the query input file. If the "saveformat" parameter is specified
-    and it\'s either "PDB", "CIF", or "MMCIF" (case-insensitive), ARTEMIS
-    will save the output coordinate files in the specified format.
+    (default: shift=3 if len(qres) < 500 else 20)
+    The shift2 value for the ScoreMatrix used in the Needleman-Wunsch
+    algorithm. Larger shift2 provides higher coverage.
     '''
 )
 
+
 parser.add_argument(
-    '-saveres', '--saveres',
+   '-stepdiv', '--stepdiv',
     default=None,
-    type=str,
+    dest='stepdiv',
+    required=False,
+    type=float,
     help='''
-    (default: saveres=QRES|QRESNEG)
-    The specification of the query structure residues that will be saved
-    in the output coordinate files.
-    See the format description at the end of the OPTIONS section.
+    (default:  stepdiv=0 if len(qres) < 500 else 100)
+    The step divider parameter. The parameter is used to speed up 
+    the procedure for large structures. If stepdiv > 0, ARTEMIS
+    will consider only each Sth reference residue as matching seed,
+    where S = 1 + len(qres)//stepdiv. If the size of the query 
+    structure exceeds 500 residues, stepdiv will be set to 100 
+    by default.
     '''
 )
+
+
+parser.add_argument(
+    '-toplargest', '--toplargest',
+    default=None,
+    dest='toplargest',
+    required=False,
+    type=int,
+    help='''
+    (default: toplargest=len(qres) if len(qres) < 500 else 2*threads)
+    Number of largest mutually closest residue sets for which 
+    alignments are constructed.
+    '''
+)
+
+
+parser.add_argument(
+    '-threads', '--threads',
+    default=mp.cpu_count(),
+    dest='threads',
+    required=False,
+    type=threads,
+    help='''
+    (default: threads=%(default)d [CPU count])
+    Number of CPUs to use.
+    '''
+)
+
+
+parser.add_argument(
+    '-p', '--permutation',
+    default=False,
+    action='store_true',
+    dest='permutation',
+    required=False,
+    help='''
+    (default: permutation=False)
+    Permutation mode. If specified, ARTEMIS will add the topology-independent 
+    alignment details to the standard output, and save its output files
+    to the saveto folder (if the folder is specified). 
+    The mode is automatically activated if the TM-score of the query 
+    structure for topology-independent alignment is at least 10%% higher 
+    than the TM-score of the backbone-dependent alignment.
+    If addhits > 0 and this parameter is on, topology-independent hits
+    will always contribute to the rresneg parameter of the next iteration.
+    '''
+)
+
+
+parser.add_argument(
+    '-s', '--sequential',
+    default=False,
+    action='store_true',
+    dest='sequential',
+    required=False,
+    help='''
+    (default: sequential=False)
+    If addhits > 0 and this parameter is on, sequentially-ordered hits
+    will always contribute to the rresneg parameter of the next iteration.
+    '''
+)
+
+
+parser.add_argument(
+    '-tsv', '--tsv',
+    default=False,
+    action='store_true',
+    dest='tsv',
+    required=False,
+    help='''
+    (default: tsv=False)
+    If specified, the output will be in TSV format instead of plain text.
+    By default, this is turned off with addhits <= 0 and turned on otherwise.
+    '''
+)
+
 
 parser.add_argument(
     '-superonly', '--superonly',
@@ -437,5 +470,31 @@ parser.add_argument(
     If specified, ARTEMIS will assume the input sequences 
     are of the same length and will try to superimpose them 
     with the perfect sequence alignment.
+    '''
+)
+
+
+parser.add_argument(
+    '-v', '--verbose',
+    default=False,
+    action='store_true',
+    dest='verbose',
+    required=False,
+    help='''
+    (default: verbose=False)
+    Verbose mode.
+    '''
+)
+
+
+parser.add_argument(
+    '-silent', '--silent',
+    default=False,
+    action='store_true',
+    dest='silent',
+    required=False,
+    help='''
+    (default: silent=False)
+    If specified, ARTEMIS will not raise any errors.
     '''
 )

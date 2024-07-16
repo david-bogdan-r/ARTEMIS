@@ -1,7 +1,9 @@
+import glob
 import itertools
 import multiprocessing as mp
 import os
 import sys
+import traceback
 from functools import partial
 from heapq import nlargest
 from time import time
@@ -55,7 +57,7 @@ except:
 
 HEAD  = '''
  ********************************************************************
- * ARTEMIS (Version 20240625)                                       *
+ * ARTEMIS (Version 1.5)                                            *
  * using ARTEM to Infer Sequence alignment                          *
  * Reference: 10.1101/2024.04.06.588371                             *
  * Please email comments and suggestions to dav.bog.rom@gmail.com   *
@@ -365,42 +367,34 @@ class DataModel(BaseModel):
         resrepr2  = self.resrepr2
         atom_site = self._atom_site
 
-        if resneg is None:
-            resi  = getResSpec(atom_site, res)
+        resi = (pd.MultiIndex
+                .from_tuples(getResSpec(atom_site, res),
+                             names=MCBI))
 
-            erkey = 'res'
-            erval = res
-
-            if seed is None:
-                self.seed = self.res
-            else:
-                self.seed = seed
-
-        else:
-            resi  = getResSpec(atom_site, resneg, True)
-
-            erkey = 'resneg'
-            erval = resneg
-
-            if seed is None:
-                self.seed = self.resneg
-            else:
-                self.seed = seed
-
-        resi = pd.MultiIndex.from_tuples(resi, names=MCBI)
-        self.resi  = resi
+        if resneg:
+            resi = resi.difference(
+                pd.MultiIndex
+                .from_tuples(getResSpec(atom_site, resneg),
+                             names=MCBI),
+                sort=False
+            )
 
         if resi.empty:
             raise ValueError(
-                'Empty residue set path={}:{}={}.'
-                .format(self.path, erkey, erval)
+                'Empty residue set path={} (res={}, resneg={})'
+                .format(self.path, res, resneg)
             )
+
+        self.resi  = resi
 
         if seed is None:
             seedi = resi
+            self.seed = seed
         else:
             seedi = getResSpec(atom_site, seed)
-        seedi = pd.MultiIndex.from_tuples(seedi, names=MCBI)
+            seedi = pd.MultiIndex.from_tuples(seedi, names=MCBI)
+            self.seed 
+
         self.seedi = seedi
 
         s = resrepr1.loc[seedi]
@@ -804,6 +798,18 @@ class ARTEMIS:
         r = self.r
         q = self.q
 
+        if r.seed is None:
+            if r.resneg:
+                r.seed = 'rres-rresneg(default)'
+            else:
+                r.seed = 'rres(default)'
+
+        if q.seed is None:
+            if q.resneg:
+                q.seed = 'qres-qresneg(default)'
+            else:
+                q.seed = 'qres(default)'
+
         config = {
             'r'         : r.path,
             'rformat'   : r.fmt,
@@ -1101,21 +1107,25 @@ class ARTEMIS:
              saveto     :'str'='.',
              saveres    :'str'='',  # type: ignore
              saveformat :'str'='',
-             permutation:'bool'=False) -> 'None':
+             permutation:'bool'=False,
+             ID=None) -> 'None':
 
         r = self.r
         q = self.q
 
         if not saveres:
-            if isinstance(q.resneg, str):
-                saveres:'str' = q.resneg
-            else:
-                saveres:'str' = q.res
+            # if isinstance(q.resneg, str):
+            #     saveres:'str' = q.resneg
+            # else:
+            #     saveres:'str' = q.res
+            saveresi = q.resi
+        else:
+            saveresi = getResSpec(q.atom_site, saveres)
 
         if not saveformat:
             saveformat = q.fmt
 
-        saveresi = getResSpec(q.atom_site, saveres)
+        # saveresi = getResSpec(q.atom_site, saveres)
 
         ans1 = self.ans1
         ans2 = self.ans2
@@ -1134,7 +1144,11 @@ class ARTEMIS:
                             .set_index(MCBI).loc[saveresi]
                             .reset_index()[q.atom_site.columns])
 
-            fname = '{}_to_{}{}'.format(q.name, r.name, saveformat)
+            if ID is None:
+                fname = '{}_to_{}{}'.format(q.name, r.name, saveformat)
+            else:
+                fname = '{}_to_{}_{}{}'.format(q.name, r.name, ID, saveformat)
+
             if saveformat == '.cif':
                 qq.to_cif('{}/{}'.format(saveto, fname))
             else:
@@ -1142,12 +1156,19 @@ class ARTEMIS:
 
             table = self.get_distance_1()
 
-            fname = '{}_to_{}.tsv'.format(q.name, r.name)
+            if ID is None:
+                fname = '{}_to_{}.tsv'.format(q.name, r.name)
+            else:
+                fname = '{}_to_{}_{}.tsv'.format(q.name, r.name, ID)
+
             table.to_csv(saveto + '/' + fname, sep='\t', 
                          float_format='{:.3f}'.format, index=False)
 
+            if ID is None:
+                fname =  '{}_to_{}.png'.format(q.name, r.name)
+            else:
+                fname =  '{}_to_{}_{}.png'.format(q.name, r.name, ID)
 
-            fname =  '{}_to_{}.png'.format(q.name, r.name)
             fig = plt.figure(figsize=(10, 10))
             amat = np.zeros((r.L, q.L), dtype=int)
             amat[h[0], h[1]] = 1
@@ -1174,7 +1195,10 @@ class ARTEMIS:
                             .set_index(MCBI).loc[saveresi]
                             .reset_index()[q.atom_site.columns])
 
-            fname = '{}_to_{}_ti{}'.format(q.name, r.name, saveformat)
+            if ID is None:
+                fname = '{}_to_{}_ti{}'.format(q.name, r.name, saveformat)
+            else:
+                fname = '{}_to_{}_{}_ti{}'.format(q.name, r.name, ID, saveformat)
 
             if saveformat == '.pdb':
                 qq.to_pdb('{}/{}'.format(saveto, fname))
@@ -1183,13 +1207,19 @@ class ARTEMIS:
 
             table = self.get_distance_2()
 
-            fname = '{}_to_{}_ti.tsv'.format(q.name, r.name)
+            if ID is None:
+                fname = '{}_to_{}_ti.tsv'.format(q.name, r.name)
+            else:
+                fname = '{}_to_{}_{}_ti.tsv'.format(q.name, r.name, ID)
 
 
             table.to_csv(saveto + '/' + fname, sep='\t',
                          float_format='{:.3f}'.format, index=False)
 
-            fname =  '{}_to_{}_ti.png'.format(q.name, r.name)
+            if ID is None:
+                fname =  '{}_to_{}_ti.png'.format(q.name, r.name)
+            else:
+                fname =  '{}_to_{}_{}_ti.png'.format(q.name, r.name, ID)
 
             fig = plt.figure(figsize=(10, 10))
             amat = np.zeros((r.L, q.L), dtype=int)
@@ -1216,46 +1246,613 @@ class ARTEMIS:
             fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
             plt.close(fig)
 
+    def save_seqord(self, 
+                    saveto     :'str'='.',
+                    saveres    :'str'='',  # type: ignore
+                    saveformat :'str'='',
+                    ID=None) -> 'None':
+        r = self.r
+        q = self.q
+
+        if not saveres:
+            saveresi = q.resi
+        else:
+            saveresi = getResSpec(q.atom_site, saveres)
+
+        if not saveformat:
+            saveformat = q.fmt
+
+        ans1 = self.ans1
+
+        rAli = ans1['rAli']
+        qAli = ans1['qAli']
+
+        h  = hitFromAli(rAli, qAli)
+
+        if h.size:
+            a, b = ans1['transform']
+
+            qq       = q.copy()
+            qq.coord = np.dot(qq.coord, a) + b
+            qq.atom_site = (qq.atom_site
+                            .set_index(MCBI).loc[saveresi]
+                            .reset_index()[q.atom_site.columns])
+
+            if ID is None:
+                fname = '{}_to_{}{}'.format(q.name, r.name, saveformat)
+            else:
+                fname = '{}_to_{}_{}{}'.format(q.name, r.name, ID, saveformat)
+
+            if saveformat == '.cif':
+                qq.to_cif('{}/{}'.format(saveto, fname))
+            else:
+                qq.to_pdb('{}/{}'.format(saveto, fname))
+
+            table = self.get_distance_1()
+
+            if ID is None:
+                fname = '{}_to_{}.tsv'.format(q.name, r.name)
+            else:
+                fname = '{}_to_{}_{}.tsv'.format(q.name, r.name, ID)
+
+            table.to_csv(saveto + '/' + fname, sep='\t', 
+                         float_format='{:.3f}'.format, index=False)
+
+            if ID is None:
+                fname =  '{}_to_{}.png'.format(q.name, r.name)
+            else:
+                fname =  '{}_to_{}_{}.png'.format(q.name, r.name, ID)
+
+            fig = plt.figure(figsize=(10, 10))
+            amat = np.zeros((r.L, q.L), dtype=int)
+            amat[h[0], h[1]] = 1
+            ax = fig.add_subplot()
+            ax.pcolor(amat, cmap='gray_r')
+            fig.gca().invert_yaxis()
+            ax.tick_params(
+                top=True, 
+                labeltop=True, 
+                bottom=False, 
+                labelbottom=False
+            )
+            ax.set_title(q.name, fontsize=18)
+            ax.set_ylabel(r.name, fontsize=18)
+            fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
+            plt.close(fig)
+
+    def save_topind(self, 
+                    saveto     :'str'='.',
+                    saveres    :'str'='',  # type: ignore
+                    saveformat :'str'='',
+                    ID=None) -> 'None':
+
+        r = self.r
+        q = self.q
+
+        if not saveres:
+            saveresi = q.resi
+        else:
+            saveresi = getResSpec(q.atom_site, saveres)
+
+        if not saveformat:
+            saveformat = q.fmt
+
+        ans2 = self.ans2
+        a, b = ans2['transform']
+        qq = q.copy()
+        qq.coord = np.dot(qq.coord, a) + b
+        qq.atom_site = (qq.atom_site
+                        .set_index(MCBI).loc[saveresi]
+                        .reset_index()[q.atom_site.columns])
+
+        if ID is None:
+            fname = '{}_to_{}_ti{}'.format(q.name, r.name, saveformat)
+        else:
+            fname = '{}_to_{}_{}_ti{}'.format(q.name, r.name, ID, saveformat)
+
+        if saveformat == '.pdb':
+            qq.to_pdb('{}/{}'.format(saveto, fname))
+        else:
+            qq.to_cif('{}/{}'.format(saveto, fname))
+
+        table = self.get_distance_2()
+
+        if ID is None:
+            fname = '{}_to_{}_ti.tsv'.format(q.name, r.name)
+        else:
+            fname = '{}_to_{}_{}_ti.tsv'.format(q.name, r.name, ID)
+
+
+        table.to_csv(saveto + '/' + fname, sep='\t',
+                        float_format='{:.3f}'.format, index=False)
+
+        if ID is None:
+            fname =  '{}_to_{}_ti.png'.format(q.name, r.name)
+        else:
+            fname =  '{}_to_{}_{}_ti.png'.format(q.name, r.name, ID)
+
+        fig = plt.figure(figsize=(10, 10))
+        amat = np.zeros((r.L, q.L), dtype=int)
+        rAli, qAli = self.ans2['rAli'], self.ans2['qAli']
+        lAli = len(rAli)
+        rd = dict(zip(r.i, range(len(r.i))))
+        qd = dict(zip(q.i, range(len(q.i))))
+        ri, qi = [], []
+        for k in range(lAli):
+            ri.append(rd[rAli[k]])
+            qi.append(qd[qAli[k]])
+        amat[ri, qi] = 1
+        ax = fig.add_subplot()
+        ax.pcolor(amat, cmap='gray_r')
+        fig.gca().invert_yaxis()
+        ax.tick_params(
+            top=True, 
+            labeltop=True, 
+            bottom=False, 
+            labelbottom=False
+        )
+        ax.set_title(q.name, fontsize=18)
+        ax.set_ylabel(r.name, fontsize=18)
+        fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
+        plt.close(fig)
+
+
+def pathparser(mask:'str') -> 'list':
+
+    paths = []
+
+    bashlist = glob.glob(mask)
+    if bashlist:
+        if len(bashlist) == 1 and os.path.isdir(mask):
+            for file in os.listdir(mask):
+                path = os.path.join(mask, file)
+                if os.path.isfile(path):
+                    paths.append(path)
+        else:
+            for path in bashlist:
+                if os.path.isfile(path):
+                    paths.append(path)
+
+    elif len(mask) == 4:
+        paths.append(mask)
+
+    return sorted(paths)
+
+
+tsv_columns = ['R', 'Q', 'ID', 'RL', 'QL', 'TYPE', 'LALI',
+               'RMSD', 'RTM', 'QTM','MATCH']
+tsv_head    = '\t'.join(tsv_columns)
+tsv_linefmt = '{R}\t{Q}\t{ID}\t{RL}\t{QL}\t{TYPE}\t{LALI}\t'\
+              '{RMSD:6.2f}\t{RTM:6.5f}\t{QTM:6.5f}\t{MATCH}'
+
+def rescode(mulind:'pd.MultiIndex'):
+    return (mulind
+            .to_series()
+            .reset_index()
+            .replace('?', '')
+            .iloc[:,:5]
+            .astype(str)
+            .apply('.'.join, axis=1))
+
+
+def tsv_line_data(artemis:'ARTEMIS', **data) -> 'tuple[str,str]':
+    # SEQORD TOPIND
+    if state == 0:      # FF
+        if artemis.perm:
+            ans = artemis.get_permutation()
+            mch = ','.join(  rescode(artemis.ans2['rAli'])
+                           + '='
+                           + rescode(artemis.ans2['qAli']))
+
+            data['TYPE']  = 'TOPIND'
+            data['LALI']  = ans['p_aliLength']
+            data['RMSD']  = ans['p_RMSD']
+            data['RTM']   = ans['p_rTMscore']
+            data['QTM']   = ans['p_qTMscore']
+            data['MATCH'] = mch
+        else:
+            ans = artemis.get_alignment()
+            ri, qi = hitFromAli(artemis.ans1['rAli'],
+                                artemis.ans1['qAli'])
+            mch = ','.join(  rescode(artemis.r.resi[ri])
+                            + '='
+                            + rescode(artemis.q.resi[qi]))
+
+            data['TYPE']  = 'SEQORD'
+            data['LALI']  = ans['aliLength']
+            data['RMSD']  = ans['RMSD']
+            data['RTM']   = ans['rTMscore']
+            data['QTM']   = ans['qTMscore']
+            data['MATCH'] = mch
+
+        return data, 
+
+    elif state == 1:    # FT
+        ans = artemis.get_permutation()
+        mch = ','.join(  rescode(artemis.ans2['rAli'])
+                       + '='
+                       + rescode(artemis.ans2['qAli']))
+
+        data['TYPE']  = 'TOPIND'
+        data['LALI']  = ans['p_aliLength']
+        data['RMSD']  = ans['p_RMSD']
+        data['RTM']   = ans['p_rTMscore']
+        data['QTM']   = ans['p_qTMscore']
+        data['MATCH'] = mch
+
+        return data, 
+
+    elif state == 2:    # TF
+        ans = artemis.get_alignment()
+        ri, qi = hitFromAli(artemis.ans1['rAli'],
+                            artemis.ans1['qAli'])
+        mch = ','.join(  rescode(artemis.r.resi[ri])
+                       + '='
+                       + rescode(artemis.q.resi[qi]))
+
+        data['TYPE']  = 'SEQORD'
+        data['LALI']  = ans['aliLength']
+        data['RMSD']  = ans['RMSD']
+        data['RTM']   = ans['rTMscore']
+        data['QTM']   = ans['qTMscore']
+        data['MATCH'] = mch
+
+        return data,
+
+    elif state == 3:    # TT
+        data_2 = data.copy()
+
+        ans = artemis.get_permutation()
+        mch = ','.join(  rescode(artemis.ans2['rAli'])
+                       + '='
+                       + rescode(artemis.ans2['qAli']))
+
+        data_2['TYPE']  = 'TOPIND'
+        data_2['LALI']  = ans['p_aliLength']
+        data_2['RMSD']  = ans['p_RMSD']
+        data_2['RTM']   = ans['p_rTMscore']
+        data_2['QTM']   = ans['p_qTMscore']
+        data_2['MATCH'] = mch
+
+        data_1 = data.copy()
+
+        ans = artemis.get_alignment()
+        ri, qi = hitFromAli(artemis.ans1['rAli'],
+                            artemis.ans1['qAli'])
+        mch = ','.join(  rescode(artemis.r.resi[ri])
+                       + '='
+                       + rescode(artemis.q.resi[qi]))
+
+        data_1['TYPE']  = 'SEQORD'
+        data_1['LALI']  = ans['aliLength']
+        data_1['RMSD']  = ans['RMSD']
+        data_1['RTM']   = ans['rTMscore']
+        data_1['QTM']   = ans['qTMscore']
+        data_1['MATCH'] = mch
+
+        return data_1, data_2
+
+
+def save(artemis:'ARTEMIS', saveto, ID):
+    # SEQORD TOPIND
+    if state == 0:      # FF
+        if artemis.perm:
+            artemis.save_topind(
+                saveto      = saveto, 
+                saveformat  = args.saveformat,
+                saveres     = args.saveres,
+                ID          = ID
+            )
+
+        else:
+            artemis.save_seqord(
+                saveto      = saveto, 
+                saveformat  = args.saveformat,
+                saveres     = args.saveres,
+                ID          = ID
+            )
+
+    elif state == 1:    # FT
+        artemis.save_topind(
+            saveto      = saveto, 
+            saveformat  = args.saveformat,
+            saveres     = args.saveres,
+            ID          = ID
+        )
+
+    elif state == 2:    # TF
+        artemis.save_seqord(
+            saveto      = saveto, 
+            saveformat  = args.saveformat,
+            saveres     = args.saveres,
+            ID          = ID
+        )
+
+    elif state == 3:    # TT
+        artemis.save_seqord(
+            saveto      = saveto, 
+            saveformat  = args.saveformat,
+            saveres     = args.saveres,
+            ID          = ID
+        )
+        artemis.save_topind(
+            saveto      = saveto, 
+            saveformat  = args.saveformat,
+            saveres     = args.saveres,
+            ID          = ID
+        )
+
+
+def rcut(artemis:'ARTEMIS') -> 'DataModel':
+
+    r = artemis.r.copy()
+    resi = r.resi
+
+    # SEQORD TOPIND
+    if state == 0:      # FF
+        if artemis.perm: 
+            rAli = artemis.ans2['rAli']
+            resi = resi.difference(rAli,
+                                   sort=False)
+            seedi = r.seedi.difference(rAli,
+                                       sort=False)
+
+        else:
+            ri, qi = hitFromAli(artemis.ans1['rAli'],
+                                artemis.ans1['qAli'])
+            rAli  = resi[ri]
+            resi  = resi.difference(rAli,
+                                    sort=False)
+            seedi = r.seedi.difference(rAli,
+                                       sort=False)
+
+    elif state == 1:    # FT
+        rAli = artemis.ans2['rAli']
+        resi = resi.difference(rAli,
+                               sort=False)
+        seedi = r.seedi.difference(rAli,
+                                   sort=False)
+
+    elif state == 2:    # TF
+        ri, qi = hitFromAli(artemis.ans1['rAli'],
+                            artemis.ans1['qAli'])
+        rAli  = resi[ri]
+        resi  = resi.difference(rAli, sort=False)
+        seedi = r.seedi.difference(rAli,
+                                   sort=False)
+
+    elif state == 3:    # TT
+        ri, qi = hitFromAli(artemis.ans1['rAli'],
+                            artemis.ans1['qAli'])
+        rAli  = resi[ri]
+        resi  = resi.difference(rAli,
+                                sort=False)
+        seedi = r.seedi.difference(rAli,
+                                 sort=False)
+
+        rAli = artemis.ans2['rAli']
+        resi = resi.difference(rAli,
+                               sort=False)
+        seedi = seedi.difference(rAli,
+                                 sort=False)
+
+
+
+    r.resi = resi
+    r.seedi = seedi
+
+    s = r.resrepr1.loc[seedi]
+    s = s[s.notna()].values
+    r.s = s
+
+    m = r.resrepr2.loc[resi]
+    m = m[m.notna()]
+    r.i = m.index
+
+    if not m.empty:
+        m = np.vstack(m.values)
+        t = KDTree(m)
+    else:
+        m = np.array([])
+        t = None
+    r.m = m
+    r.t = t
+
+    return r
+
+
+def getQTM(artemis:'ARTEMIS'):
+    # SEQORD TOPIND
+    if state == 0:      # FF
+        if artemis.perm:
+            return artemis.ans2['qTM']
+        else:
+            return artemis.ans1['qTM']
+    elif state == 1:      # FT
+        return artemis.ans2['qTM']
+    elif state == 2:      # TF
+        return artemis.ans1['qTM']
+    elif state == 3:      # TT
+        return max(artemis.ans1['qTM'], artemis.ans2['qTM']) 
+
 
 if __name__ == '__main__':
     from src.argparse import argParse
 
     args = argParse(sys.argv[1:])
 
+    if args.addhits > 0.0:
+        args.tsv = True
+        if args.addhits >= 1.0:
+            args.addhits = int(args.addhits)
+
+
+    if args.tsv:
+        state = int('{:d}{:d}'.format(args.sequential, 
+                                      args.permutation), base=2)
+        print(tsv_head)
+
     if args.threads > 1:
         if 'fork' in mp.get_all_start_methods():
             mp.set_start_method('fork')
 
-    r = DataModel(
-        path    = args.r,
-        fmt     = args.rformat,
-        res     = args.rres,
-        resneg  = args.rresneg,
-        seed    = args.rseed
-    )
+    rpaths = pathparser(args.r)
+    qpaths = pathparser(args.q)
 
-    q = DataModel(
-        path    = args.q,
-        fmt     = args.qformat,
-        res     = args.qres,
-        resneg  = args.qresneg,
-        seed    = args.qseed
-    )
+    for rpath in rpaths:
+        try:
+            rformat = ({'.cif': '.cif'}.get(os.path.splitext(rpath)[-1], '.pdb')
+                    if args.rformat is None
+                    else args.rformat)
 
-    artemis = ARTEMIS(
-        r, q,
-        matchrange=args.matchrange, threads=args.threads,
-        toplargest=args.toplargest, shift=args.shift, stepdiv=args.stepdiv,
-        superonly=args.superonly
-    )
+            r = DataModel(
+                path    = rpath,
+                fmt     = rformat,
+                res     = args.rres,
+                resneg  = args.rresneg,
+                seed    = args.rseed
+            )
 
-    artemis.run()
+            if args.saveto:
+                if len(rpaths) > 1:
+                    _, file = os.path.split(rpath)
+                    saveto = os.path.join(args.saveto, file)
+                else:
+                    saveto = args.saveto
 
-    if args.saveto:
-        artemis.save(saveto     = args.saveto, 
-                     saveformat = args.saveformat,
-                     saveres    = args.saveres,
-                     permutation= artemis.perm or args.permutation)
+        except Exception as e:
+            if args.silent:
+                print('Exception: r={}'.format(rpath), file=sys.stderr)
+                tb = e.__traceback__
+                print(''.join(traceback.format_tb(tb)), file=sys.stderr)
+                continue
+            else:
+                raise e
 
-    print(artemis.show(verbose=args.verbose, 
-                       permutation=args.permutation or artemis.perm))
+        for qpath in qpaths:
+            try:
+                qformat = ({'.cif': '.cif'}.get(os.path.splitext(qpath)[-1], '.pdb')
+                        if args.qformat is None
+                        else args.qformat)
+
+                q = DataModel(
+                    path    = qpath,
+                    fmt     = qformat,
+                    res     = args.qres,
+                    resneg  = args.qresneg,
+                    seed    = args.qseed
+                )
+
+                artemis = ARTEMIS(
+                    r, q,
+                    matchrange  = args.matchrange,
+                    threads     = args.threads,
+                    toplargest  = args.toplargest,
+                    shift       = args.shift,
+                    stepdiv     = args.stepdiv,
+                    superonly   = args.superonly
+                )
+                artemis.run()
+
+                if args.tsv:
+                    data = {
+                        'R' : rpath,
+                        'RL': r.L,
+                        'Q' : qpath,
+                        'QL': q.L,
+                        'ID': 0,
+                    }
+
+                    for data in tsv_line_data(artemis, **data):
+                        print(tsv_linefmt.format(**data))
+
+                    if args.saveto:
+                        save(artemis, saveto, data['ID'])
+
+                    if isinstance(args.addhits, int):
+                        r_ = rcut(artemis)
+                        data['RL'] = r_.L
+                        for i in range(args.addhits):
+                            if r_.L > q.L / 2:
+                                data['ID'] += 1
+                                artemis = ARTEMIS(
+                                    r_, q,
+                                    matchrange  = args.matchrange,
+                                    threads     = args.threads,
+                                    toplargest  = args.toplargest,
+                                    shift       = args.shift,
+                                    stepdiv     = args.stepdiv,
+                                    superonly   = args.superonly
+                                )
+                                artemis.run()
+
+                                for data in tsv_line_data(artemis, **data):
+                                    print(tsv_linefmt.format(**data))
+                                if args.saveto:
+                                    save(artemis, saveto, data['ID'])
+
+                                r_ = rcut(artemis)
+                                data['RL'] = r_.L
+                            else:
+                                break
+
+                    elif args.addhits > 0:
+                        r_ = rcut(artemis)
+                        data['RL'] = r_.L
+                        QTM = getQTM(artemis)
+                        while QTM > args.addhits and r_.L > q.L / 2:
+                            data['ID'] += 1
+                            artemis = ARTEMIS(
+                                r_, q,
+                                matchrange  = args.matchrange,
+                                threads     = args.threads,
+                                toplargest  = args.toplargest,
+                                shift       = args.shift,
+                                stepdiv     = args.stepdiv,
+                                superonly   = args.superonly
+                            )
+                            artemis.run()
+
+                            for data in tsv_line_data(artemis, **data):
+                                if data['QTM'] > args.addhits:
+                                    print(tsv_linefmt.format(**data))
+                                    if args.saveto:
+                                        if data['TYPE'] == 'SEQORD':
+                                            artemis.save_seqord(
+                                                saveto      = saveto, 
+                                                saveformat  = args.saveformat,
+                                                saveres     = args.saveres,
+                                                ID          = data['ID']
+                                            )
+                                        elif data['TYPE'] == 'TOPIND':
+                                            artemis.save_topind(
+                                                saveto      = saveto, 
+                                                saveformat  = args.saveformat,
+                                                saveres     = args.saveres,
+                                                ID          = data['ID']
+                                            )
+                            r_ = rcut(artemis)
+                            data['RL'] = r_.L
+                            QTM = getQTM(artemis)
+
+                else:
+                    if args.saveto:
+                        artemis.save(saveto      = saveto, 
+                                    saveformat  = args.saveformat,
+                                    saveres     = args.saveres,
+                                    permutation = artemis.perm or
+                                                args.permutation)
+
+                    print(artemis
+                        .show(verbose     = args.verbose, 
+                                permutation = args.permutation or
+                                            artemis.perm))
+
+            except Exception as e:
+                if args.silent:
+                    print('Exception: r={}, q={}'.format(rpath, qpath), file=sys.stderr)
+                    tb = e.__traceback__
+                    print(''.join(traceback.format_tb(tb)), file=sys.stderr)
+                    continue
+                else:
+                    raise e

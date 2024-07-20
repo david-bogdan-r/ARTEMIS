@@ -1118,7 +1118,19 @@ class ARTEMIS:
             #     saveres:'str' = q.resneg
             # else:
             #     saveres:'str' = q.res
-            saveresi = q.resi
+
+            # saveresi = q.resi
+
+            saveresi = pd.MultiIndex.from_tuples(
+                getResSpec(q.atom_site, q.res)
+            )
+            if q.resneg:
+                saveresi = saveresi.difference(
+                    pd.MultiIndex.from_tuples(
+                        getResSpec(q.atom_site, q.resneg)
+                    )
+                )
+
         else:
             saveresi = getResSpec(q.atom_site, saveres)
 
@@ -1255,7 +1267,17 @@ class ARTEMIS:
         q = self.q
 
         if not saveres:
-            saveresi = q.resi
+            # saveresi = q.resi
+            saveresi = pd.MultiIndex.from_tuples(
+                getResSpec(q.atom_site, q.res)
+            )
+            if q.resneg:
+                saveresi = saveresi.difference(
+                    pd.MultiIndex.from_tuples(
+                        getResSpec(q.atom_site, q.resneg)
+                    )
+                )
+
         else:
             saveresi = getResSpec(q.atom_site, saveres)
 
@@ -1330,7 +1352,16 @@ class ARTEMIS:
         q = self.q
 
         if not saveres:
-            saveresi = q.resi
+            # saveresi = q.resi
+            saveresi = pd.MultiIndex.from_tuples(
+                getResSpec(q.atom_site, q.res)
+            )
+            if q.resneg:
+                saveresi = saveresi.difference(
+                    pd.MultiIndex.from_tuples(
+                        getResSpec(q.atom_site, q.resneg)
+                    )
+                )
         else:
             saveresi = getResSpec(q.atom_site, saveres)
 

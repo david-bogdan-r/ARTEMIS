@@ -1730,6 +1730,19 @@ if __name__ == '__main__':
     rpaths = pathparser(args.r)
     qpaths = pathparser(args.q)
 
+    if not rpaths:
+        raise ValueError(
+            'Argument r={} does not specify any file or structure from the RCSB PDB.'
+            .format(args.r)
+        )
+
+    if not qpaths:
+        raise ValueError(
+            'Argument q={} does not specify any file or structure from the RCSB PDB.'
+            .format(args.q)
+        )
+
+
     for rpath in rpaths:
         try:
             rformat = ({'.cif': '.cif'}.get(os.path.splitext(rpath)[-1], '.pdb')

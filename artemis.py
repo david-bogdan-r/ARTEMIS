@@ -504,8 +504,8 @@ class ARTEMIS:
         else:
             raise TypeError('q={}'.format(q))
 
-
-        if self.q.L >= 500:
+        M = min(self.r.L, self.q.L)
+        if M >= 500:
 
             if toplargest is None:
                 toplargest = 2 * threads
@@ -518,7 +518,7 @@ class ARTEMIS:
 
         else:
             if toplargest is None:
-                toplargest = self.q.L
+                toplargest = M
 
             if shift is None:
                 shift = 3

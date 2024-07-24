@@ -1732,13 +1732,13 @@ if __name__ == '__main__':
 
     if not rpaths:
         raise ValueError(
-            'Argument r={} does not specify any file or structure from the RCSB PDB.'
+            'Argument r={} does not specify any local file or structure from the RCSB PDB.'
             .format(args.r)
         )
 
     if not qpaths:
         raise ValueError(
-            'Argument q={} does not specify any file or structure from the RCSB PDB.'
+            'Argument q={} does not specify any local file or structure from the RCSB PDB.'
             .format(args.q)
         )
 

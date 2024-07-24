@@ -1,0 +1,8 @@
+                	ARTEMIS  	Best competitor 	US-align 	RMalign  	STAR3D   	ARTS      	Rclick
+ARTEMIS         	*        	0.00E+00        	0.00E+00 	0.00E+00 	0.00E+00 	0.00E+00  	0.00E+00
+Best competitor 	0.00E+00 	*               	0.00E+00 	0.00E+00 	0.00E+00 	0.00E+00  	0.00E+00
+US-align        	0.00E+00 	0.00E+00        	*        	0.00E+00 	0.00E+00 	0.00E+00  	0.00E+00
+RMalign         	0.00E+00 	0.00E+00        	0.00E+00 	*        	0.00E+00 	0.00E+00  	0.00E+00
+STAR3D          	0.00E+00 	0.00E+00        	0.00E+00 	0.00E+00 	*        	0.00E+00  	0.00E+00
+ARTS            	0.00E+00 	0.00E+00        	0.00E+00 	0.00E+00 	0.00E+00 	*         	2.39E-113
+Rclick          	0.00E+00 	0.00E+00        	0.00E+00 	0.00E+00 	0.00E+00 	2.39E-113 	*

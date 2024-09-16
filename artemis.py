@@ -59,7 +59,7 @@ HEAD  = '''
  ********************************************************************
  * ARTEMIS (Version 1.5)                                            *
  * using ARTEM to Infer Sequence alignment                          *
- * Reference: 10.1101/2024.04.06.588371                             *
+ * Reference: 10.1093/nar/gkae758                                   *
  * Please email comments and suggestions to dav.bog.rom@gmail.com   *
  ********************************************************************
 '''

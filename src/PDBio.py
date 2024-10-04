@@ -245,7 +245,15 @@ class BaseModel:
                 if len(name) == 4:
                     import requests
                     url = URL.format(PDB_ID=name.upper(), fmt='.cif')
-                    atom_site = as_cif(requests.get(url).text)
+                    response = requests.get(url)
+                    if response.status_code == 200:
+                        atom_site = as_cif(response.text)
+                    else:
+                        raise Exception(
+                            'Could not obtain {name} structure in {fmt} format from RCSB PDB'.format(
+                                name=name, fmt=fmt.lstrip('.').upper()
+                            )
+                        )
                 else:
                     raise ValueError(f"path={path} it's not a local file or PDB ID [4 letter code]")
         else:
@@ -255,7 +263,15 @@ class BaseModel:
                 if len(name) == 4:
                     import requests
                     url = URL.format(PDB_ID=name.upper(), fmt='.pdb')
-                    atom_site = as_pdb(requests.get(url).text)
+                    response = requests.get(url)
+                    if response.status_code == 200:
+                        atom_site = as_pdb(response.text)
+                    else:
+                        raise Exception(
+                            'Could not obtain {name} structure in {fmt} format from RCSB PDB'.format(
+                                name=name, fmt=fmt.lstrip('.').upper()
+                            )
+                        )
                 else:
                     raise ValueError(f"path={path} it's not a local file or PDB ID [4 letter code]")
 

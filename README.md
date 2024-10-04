@@ -6,6 +6,8 @@ Using [ARTEM](https://github.com/david-bogdan-r/ARTEM) to Infer Sequence alignme
 
 [Bohdan, D. R., Bujnicki, J. M., & Baulin, E. F. (2024). ARTEMIS: a method for topology-independent superposition of RNA 3D structures and structure-based sequence alignment. Nucleic Acids Research, gkae758. DOI: 10.1093/nar/gkae758](https://doi.org/10.1093/nar/gkae758)
 
+## Check out [our other developments](https://github.com/febos/wiki)
+
 ## How ARTEMIS works
 
 ARTEMIS reads a reference and a query structure from the specified coordinate files in PDB or in mmCIF format and identifies the two best superpositions.

@@ -535,18 +535,20 @@ def mkdir(path:'str') -> 'None':
 def chain_rename(atom_site:'pd.DataFrame') -> 'dict':
 
     code = atom_site['auth_asym_id'].astype(str).unique()
-    rename = {c: '' for c in code if len(c) > 1}
+    rename = {c: '' for c in code if len(c) > 2}
 
     if rename:
 
         lbl = ascii_letters + digits
+        lbl = (x + y for x in ' ' + lbl for y in lbl)
         i = 0
 
         for c in rename.keys():
             try:
-                while lbl[i] in code:
-                    i += 1
-                rename[c] = lbl[i]
+                l = next(lbl).lstrip()
+                while l in code:
+                    l = next(lbl).lstrip()
+                rename[c] = l
                 i += 1
 
             except IndexError:

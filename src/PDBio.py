@@ -553,7 +553,7 @@ def chain_rename(atom_site:'pd.DataFrame') -> 'dict':
 
             except IndexError:
                 raise NameError('Unable to rename chains '\
-                                'to a one-letter code')
+                                'to a two-letter code')
 
     return rename
 

@@ -498,3 +498,29 @@ parser.add_argument(
     If specified, ARTEMIS will not raise any errors.
     '''
 )
+
+
+parser.add_argument(
+    '-notmopt', '--notmopt',
+    default=False,
+    action='store_true',
+    dest='notmopt',
+    required=False,
+    help='''
+    (default: notmopt=False)
+    If specified, ARTEMIS will not maximize TM-scores for a given Lali set, but minimize RMSD instead.
+    '''
+)
+
+
+parser.add_argument(
+    '-png', '--png',
+    default=False,
+    action='store_true',
+    dest='png',
+    required=False,
+    help='''
+    (default: png=False)
+    If specified, ARTEMIS will save the alignment plot as a .png.
+    '''
+)

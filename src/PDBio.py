@@ -539,8 +539,8 @@ def chain_rename(atom_site:'pd.DataFrame') -> 'dict':
 
     if rename:
 
-        lbl = ascii_letters + digits
-        lbl = (x + y for x in ' ' + lbl for y in lbl)
+        lbl1 = ascii_letters + digits
+        lbl = (x + y for x in ' ' + lbl1 for y in lbl1)
         i = 0
 
         for c in rename.keys():

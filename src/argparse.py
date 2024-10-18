@@ -524,3 +524,13 @@ parser.add_argument(
     If specified, ARTEMIS will save the alignment plot as a .png.
     '''
 )
+
+
+parser.add_argument(
+    '-dssr', '--dssr',
+    default=False,
+    action='store_true',
+    dest='dssr',
+    required=False,
+    help=argparse.SUPPRESS
+)

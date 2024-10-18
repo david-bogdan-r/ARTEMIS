@@ -92,7 +92,7 @@ Name of structure r: {rName}:{rChain}
 Name of structure q: {qName}:{qChain} (to be superimposed onto structure r)
 Length of structure r: {rLength} residues
 Length of structure q: {qLength} residues
-
+{dssr}
 Aligned length= {aliLength}, RMSD= {RMSD:6.2f}, Seq_ID=n_identical/n_aligned= {Seq_ID:4.3f}
 TM-score= {rTMscore:6.5f} (normalized by length of structure r: L={rLength}, d0={r_d0:.2f})
 TM-score= {qTMscore:6.5f} (normalized by length of structure q: L={qLength}, d0={q_d0:.2f})
@@ -1070,11 +1070,17 @@ class ARTEMIS:
 
         return total_time
 
-    def show(self, verbose:'bool'=False, permutation:'bool'=False) -> 'str':
+    def show(self, verbose:'bool'=False, permutation:'bool'=False, dssr:'bool'=False) -> 'str':
+
+        if dssr:
+            dssr_s  = 'rDSSR: ' + ', '.join(['.'.join(map(str, i)) for i in self.r.resi]) + '\n'
+            dssr_s += 'qDSSR: ' + ', '.join(['.'.join(map(str, i)) for i in self.q.resi]) + '\n\n'
+        else:
+            dssr_s = ''
 
         index = {
             'head'      : HEAD,
-            'alignment' : ALIGNMENT.format(**self.get_alignment()),
+            'alignment' : ALIGNMENT.format(dssr=dssr_s, **self.get_alignment()),
             'time'      : TIME.format(total_time=self.lifetime),
         }
 
@@ -1912,7 +1918,8 @@ if __name__ == '__main__':
                     print(artemis
                         .show(verbose     = args.verbose, 
                                 permutation = args.permutation or
-                                            artemis.perm))
+                                            artemis.perm,
+                                dssr=args.dssr))
 
             except Exception as e:
                 if args.silent:

@@ -214,9 +214,6 @@ ARTEMIS was tested with two different Python3 environments:
     -notmopt, --notmopt [DEFAULT: OFF]
         If specified, ARTEMIS will not maximize TM-scores for a given Lali set, but minimize RMSD instead.
 
-    -png, --png [DEFAULT: OFF]
-        If specified, ARTEMIS will save the alignment plot as a .png.
-
     ***************************************************************************
     ARTEMIS uses a ChimeraX-like format to specify the residues of interest 
     using the "res" parameters:

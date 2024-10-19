@@ -400,7 +400,7 @@ class DataModel(BaseModel):
         else:
             seedi = getResSpec(atom_site, seed)
             seedi = pd.MultiIndex.from_tuples(seedi, names=MCBI)
-            self.seed 
+            self.seed  = seed
 
         self.seedi = seedi
 
@@ -481,7 +481,6 @@ class ARTEMIS:
                  stepdiv:'int|None'=None,
                  superonly:'bool'=False,
                  notmopt:'bool'=False,
-                 png:'bool'=False
                  ) -> 'None':
 
         self.tic        = time()
@@ -489,7 +488,6 @@ class ARTEMIS:
         self.matchrange = matchrange
         self.threads    = threads
         self.notmopt    = notmopt
-        self.png        = png
 
         if threads > 1:
             self.pool = mp.Pool(threads)
@@ -1199,23 +1197,26 @@ class ARTEMIS:
             else:
                 fname =  '{}_to_{}_{}.png'.format(q.name, r.name, ID)
 
-            if self.png:
-                fig = plt.figure(figsize=(10, 10))
-                amat = np.zeros((r.L, q.L), dtype=int)
-                amat[h[0], h[1]] = 1
-                ax = fig.add_subplot()
-                ax.pcolor(amat, cmap='gray_r')
-                fig.gca().invert_yaxis()
-                ax.tick_params(
-                    top=True, 
-                    labeltop=True, 
-                    bottom=False, 
-                    labelbottom=False
-                )
-                ax.set_title(q.name, fontsize=18)
-                ax.set_ylabel(r.name, fontsize=18)
-                fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
-                plt.close(fig)
+            fig = plt.figure(figsize=(10, 10))
+            ax = fig.add_subplot()
+            ax.scatter(h[1] + 0.5, h[0] + 0.5,
+                    marker='s',
+                    s = max(518400 / (r.L * q.L), 0.2),
+                    edgecolor='none',
+                    c='black')
+            ax.set_xlim(-1, q.L + 1)
+            ax.set_ylim(-1, r.L + 1)
+            fig.gca().invert_yaxis()
+            ax.tick_params(
+                top=True, 
+                labeltop=True, 
+                bottom=False, 
+                labelbottom=False
+            )
+            ax.set_title(q.name, fontsize=18)
+            ax.set_ylabel(r.name, fontsize=18)
+            fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
+            plt.close(fig)
 
         if permutation:
             a, b = ans2['transform']
@@ -1252,31 +1253,38 @@ class ARTEMIS:
             else:
                 fname =  '{}_to_{}_{}_ti.png'.format(q.name, r.name, ID)
 
-            if self.png:
-                fig = plt.figure(figsize=(10, 10))
-                amat = np.zeros((r.L, q.L), dtype=int)
-                rAli, qAli = self.ans2['rAli'], self.ans2['qAli']
-                lAli = len(rAli)
-                rd = dict(zip(r.i, range(len(r.i))))
-                qd = dict(zip(q.i, range(len(q.i))))
-                ri, qi = [], []
-                for k in range(lAli):
-                    ri.append(rd[rAli[k]])
-                    qi.append(qd[qAli[k]])
-                amat[ri, qi] = 1
-                ax = fig.add_subplot()
-                ax.pcolor(amat, cmap='gray_r')
-                fig.gca().invert_yaxis()
-                ax.tick_params(
-                    top=True, 
-                    labeltop=True, 
-                    bottom=False, 
-                    labelbottom=False
-                )
-                ax.set_title(q.name, fontsize=18)
-                ax.set_ylabel(r.name, fontsize=18)
-                fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
-                plt.close(fig)
+            fig = plt.figure(figsize=(10, 10))
+            rAli, qAli = self.ans2['rAli'], self.ans2['qAli']
+            lAli = len(rAli)
+            rd = dict(zip(r.i, range(len(r.i))))
+            qd = dict(zip(q.i, range(len(q.i))))
+            ri, qi = [], []
+            for k in range(lAli):
+                ri.append(rd[rAli[k]])
+                qi.append(qd[qAli[k]])
+            ri = np.array(ri)
+            qi = np.array(qi)
+            # amat[ri, qi] = 1
+            ax = fig.add_subplot()
+            ax.scatter(qi+0.5, ri+0.5,
+                       marker='s',
+                       s = max(518400 / (r.L * q.L), 0.2),
+                       edgecolor='none',
+                       c='black')
+            ax.set_xlim(-1, q.L + 1)
+            ax.set_ylim(-1, r.L + 1)
+            # ax.pcolor(amat, cmap='gray_r')
+            fig.gca().invert_yaxis()
+            ax.tick_params(
+                top=True, 
+                labeltop=True, 
+                bottom=False, 
+                labelbottom=False
+            )
+            ax.set_title(q.name, fontsize=18)
+            ax.set_ylabel(r.name, fontsize=18)
+            fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
+            plt.close(fig)
 
     def save_seqord(self, 
                     saveto     :'str'='.',
@@ -1345,23 +1353,26 @@ class ARTEMIS:
             else:
                 fname =  '{}_to_{}_{}.png'.format(q.name, r.name, ID)
 
-            if self.png:
-                fig = plt.figure(figsize=(10, 10))
-                amat = np.zeros((r.L, q.L), dtype=int)
-                amat[h[0], h[1]] = 1
-                ax = fig.add_subplot()
-                ax.pcolor(amat, cmap='gray_r')
-                fig.gca().invert_yaxis()
-                ax.tick_params(
-                    top=True, 
-                    labeltop=True, 
-                    bottom=False, 
-                    labelbottom=False
-                )
-                ax.set_title(q.name, fontsize=18)
-                ax.set_ylabel(r.name, fontsize=18)
-                fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
-                plt.close(fig)
+            fig = plt.figure(figsize=(10, 10))
+            ax = fig.add_subplot()
+            ax.scatter(h[1] + 0.5, h[0] + 0.5,
+                        marker='s',
+                        edgecolor='none',
+                        s = max(518400 / (r.L * q.L), 0.2),
+                        c='black')
+            ax.set_xlim(-1, q.L + 1)
+            ax.set_ylim(-1, r.L + 1)
+            fig.gca().invert_yaxis()
+            ax.tick_params(
+                top=True, 
+                labeltop=True, 
+                bottom=False, 
+                labelbottom=False
+            )
+            ax.set_title(q.name, fontsize=18)
+            ax.set_ylabel(r.name, fontsize=18)
+            fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
+            plt.close(fig)
 
     def save_topind(self, 
                     saveto     :'str'='.',
@@ -1423,31 +1434,40 @@ class ARTEMIS:
         else:
             fname =  '{}_to_{}_{}_ti.png'.format(q.name, r.name, ID)
 
-        if self.png:
-            fig = plt.figure(figsize=(10, 10))
-            amat = np.zeros((r.L, q.L), dtype=int)
-            rAli, qAli = self.ans2['rAli'], self.ans2['qAli']
-            lAli = len(rAli)
-            rd = dict(zip(r.i, range(len(r.i))))
-            qd = dict(zip(q.i, range(len(q.i))))
-            ri, qi = [], []
-            for k in range(lAli):
-                ri.append(rd[rAli[k]])
-                qi.append(qd[qAli[k]])
-            amat[ri, qi] = 1
-            ax = fig.add_subplot()
-            ax.pcolor(amat, cmap='gray_r')
-            fig.gca().invert_yaxis()
-            ax.tick_params(
-                top=True, 
-                labeltop=True, 
-                bottom=False, 
-                labelbottom=False
-            )
-            ax.set_title(q.name, fontsize=18)
-            ax.set_ylabel(r.name, fontsize=18)
-            fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
-            plt.close(fig)
+        fig = plt.figure(figsize=(10, 10))
+        rAli, qAli = self.ans2['rAli'], self.ans2['qAli']
+        lAli = len(rAli)
+        rd = dict(zip(r.i, range(len(r.i))))
+        qd = dict(zip(q.i, range(len(q.i))))
+        ri, qi = [], []
+        for k in range(lAli):
+            ri.append(rd[rAli[k]])
+            qi.append(qd[qAli[k]])
+        # amat[ri, qi] = 1
+        ri = np.array(ri)
+        qi = np.array(qi)
+        ax = fig.add_subplot()
+        # ax.pcolor(amat, cmap='gray_r')
+        ax.scatter(
+            qi+0.5, ri+0.5,
+            marker='s',
+            s = max(518400 / (r.L * q.L), 0.2),
+            edgecolor='none',
+            c='black'
+        )
+        ax.set_xlim(-1, q.L + 1)
+        ax.set_ylim(-1, r.L + 1)
+        fig.gca().invert_yaxis()
+        ax.tick_params(
+            top=True, 
+            labeltop=True, 
+            bottom=False, 
+            labelbottom=False
+        )
+        ax.set_title(q.name, fontsize=18)
+        ax.set_ylabel(r.name, fontsize=18)
+        fig.savefig(saveto + '/' + fname, dpi=200, bbox_inches='tight')
+        plt.close(fig)
 
 
 def pathparser(mask:'str') -> 'list':
@@ -1818,7 +1838,6 @@ if __name__ == '__main__':
                     stepdiv     = args.stepdiv,
                     superonly   = args.superonly,
                     notmopt     = args.notmopt,
-                    png         = args.png
                 )
                 artemis.run()
 
@@ -1852,7 +1871,6 @@ if __name__ == '__main__':
                                     stepdiv     = args.stepdiv,
                                     superonly   = args.superonly,
                                     notmopt     = args.notmopt,
-                                    png         = args.png
                                 )
                                 artemis.run()
 
@@ -1881,7 +1899,6 @@ if __name__ == '__main__':
                                 stepdiv     = args.stepdiv,
                                 superonly   = args.superonly,
                                 notmopt     = args.notmopt,
-                                png         = args.png
                             )
                             artemis.run()
 

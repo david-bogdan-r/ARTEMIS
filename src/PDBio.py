@@ -335,9 +335,7 @@ class BaseModel:
             label = atom_site['label_asym_id'].unique()
             label = dict(zip(label, range(1, len(label) + 1)))
 
-            with pd.option_context("future.no_silent_downcasting", True):
-                atom_site['label_entity_id'] = (atom_site['label_asym_id']
-                                                .replace(to_replace=label))
+            atom_site['label_entity_id'] = [label[x] for x in atom_site['label_asym_id']]
 
             atom_site = atom_site[
                 [
@@ -374,8 +372,7 @@ class BaseModel:
             ]].astype(str).apply(lambda x: '.'.join(x), axis=1)
             res_id = label_seq_id.unique()
             replace = dict(zip(res_id, range(1, len(res_id)+1)))
-            with pd.option_context("future.no_silent_downcasting", True):
-                label_seq_id.replace(replace, inplace=True)
+            label_seq_id.loc[:] = [replace[x] for x in label_seq_id]
             atom_site['label_seq_id'] = label_seq_id
 
         return atom_site

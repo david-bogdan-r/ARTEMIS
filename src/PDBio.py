@@ -137,7 +137,8 @@ def as_pdb(text:'str') -> 'pd.DataFrame':
     )
 
     if 'auth_atom_id' in atom_site.columns:
-        atom_site['auth_atom_id'] = atom_site['auth_atom_id'].str.replace('*', "'")
+        # atom_site['auth_atom_id'] = atom_site['auth_atom_id'].str.replace('*', "'")
+        atom_site['auth_atom_id'] = [str(x).replace('*', "'") for x in atom_site['auth_atom_id']]
         atom_site['auth_atom_id'] = atom_site['auth_atom_id'].replace(
             to_replace={
                 'O1P': 'OP1',
@@ -185,7 +186,8 @@ def as_cif(text:'str') -> 'pd.DataFrame':
             atom_site.loc[m, col] = atom_site[col][m].str[1:-1]
 
     if 'auth_atom_id' in atom_site.columns:
-        atom_site['auth_atom_id'] = atom_site['auth_atom_id'].str.replace('*', "'")
+        # atom_site['auth_atom_id'] = atom_site['auth_atom_id'].str.replace('*', "'")
+        atom_site['auth_atom_id'] = [str(x).replace('*', "'") for x in atom_site['auth_atom_id']]
         atom_site['auth_atom_id'] = atom_site['auth_atom_id'].replace(
             to_replace={
                 'O1P': 'OP1',

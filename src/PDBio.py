@@ -195,7 +195,8 @@ def as_cif(text:'str') -> 'pd.DataFrame':
             }
         )
     if 'label_atom_id' in atom_site.columns:
-        atom_site['label_atom_id'] = atom_site['label_atom_id'].str.replace('*', "'")
+        # atom_site['label_atom_id'] = atom_site['label_atom_id'].str.replace('*', "'")
+        atom_site['label_atom_id'] = [str(x).replace('*', "'") for x in atom_site['label_atom_id']]
         atom_site['label_atom_id'] = atom_site['label_atom_id'].replace(
             to_replace={
                 'O1P': 'OP1',

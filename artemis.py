@@ -57,7 +57,7 @@ except:
 
 HEAD  = '''
  ********************************************************************
- * ARTEMIS (Version 1.5)                                            *
+ * ARTEMIS (Version 1.51)                                           *
  * using ARTEM to Infer Sequence alignment                          *
  * Reference: 10.1093/nar/gkae758                                   *
  * Please email comments and suggestions to dav.bog.rom@gmail.com   *
